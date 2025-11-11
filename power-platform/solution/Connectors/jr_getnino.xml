@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Connector xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <connectorid>212dec1d-44ce-47cb-bd8c-3921f6f1e16a</connectorid>
+  <description>AtW GUID Service API - Retrieve person details (including NINO) from GUID with complete OAuth abstraction. Handles AWS Secrets Manager and Cognito authentication transparently.</description>
+  <displayname>GetNINO</displayname>
+  <iconbrandcolor>#007ee5</iconbrandcolor>
+  <name>jr_getnino</name>
+  <connectortype>1</connectortype>
+  <openapidefinition>/Connector/jr_getnino_openapidefinition.json</openapidefinition>
+  <connectionparameters>/Connector/jr_getnino_connectionparameters.json</connectionparameters>
+  <policytemplateinstances>/Connector/jr_getnino_policytemplateinstances.json</policytemplateinstances>
+  <iconblob>/Connector/jr_getnino_iconblob.Png</iconblob>
+</Connector>

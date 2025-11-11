@@ -1,0 +1,39 @@
+# Client-specific documentation (sensitive)
+docs/*.pdf
+
+# Azure/AWS credentials and state
+vpn-lab-state.json
+*.tfstate
+*.tfstate.backup
+
+# Environment variables
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Azure Functions
+local.settings.json
+.python_packages/
+.vscode/
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

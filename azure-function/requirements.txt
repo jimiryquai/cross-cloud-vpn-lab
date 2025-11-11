@@ -1,0 +1,11 @@
+# Azure Functions for Python
+azure-functions
+
+# AWS SDK for Python (boto3)
+boto3>=1.28.0
+
+# HTTP requests library
+requests>=2.31.0
+
+# Additional dependencies
+certifi

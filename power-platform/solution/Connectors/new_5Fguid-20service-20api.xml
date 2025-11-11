@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Connector xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <connectorid>1cb8fc7e-a850-4390-8e81-5f8185233d06</connectorid>
+  <description>AtW GUID Service API - Retrieve person details (including NINO) from GUID with complete OAuth abstraction</description>
+  <displayname>GUID Service API</displayname>
+  <iconbrandcolor>#007ee5</iconbrandcolor>
+  <name>new_5Fguid-20service-20api</name>
+  <connectortype>1</connectortype>
+  <openapidefinition>/Connector/new_5Fguid-20service-20api_openapidefinition.json</openapidefinition>
+  <connectionparameters>/Connector/new_5Fguid-20service-20api_connectionparameters.json</connectionparameters>
+  <policytemplateinstances>/Connector/new_5Fguid-20service-20api_policytemplateinstances.json</policytemplateinstances>
+  <iconblob>/Connector/new_5Fguid-20service-20api_iconblob.Png</iconblob>
+</Connector>
