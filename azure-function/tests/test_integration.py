@@ -94,54 +94,43 @@ class TestRealAWSIntegration:
         print(f"    - Token format: JWT (starts with 'eyJ')")
 
     def test_call_real_guid_api(self):
-        """Test calling real GUID API with Bearer token"""
+        """Test calling real GUID API with Bearer token and Header-based Identifier"""
         print("\n→ Testing GUID API call...")
 
-        # Get real credentials and token
         client_id, secret = get_cognito_credentials()
         access_token = get_cognito_token(client_id, secret)
-        print(f"  ✓ Got OAuth token")
 
-        # Call real API
-        test_guid = "123e4567-e89b-12d3-a456-426614174000"
-        person_data = call_guid_api(access_token, test_guid)
+        # UPDATED: The function now needs identifier AND correlation_id
+        test_identifier = "123e4567-e89b-12d3-a456-426614174000"
+        test_correlation = "88888888-4444-4444-4444-121212121212"
+        
+        person_data = call_guid_api(access_token, test_identifier, test_correlation)
 
-        # Verify response
-        assert person_data is not None, "Response should not be None"
-        assert 'nino' in person_data, "Response should contain 'nino'"
-        assert 'guid' in person_data, "Response should contain 'guid'"
-        assert person_data['guid'] == test_guid, "Returned GUID should match input"
+        # UPDATED: Assertions must match the new Response DTO keys
+        assert person_data is not None
+        assert "Returned identifier of the type specified in the type field" in person_data
+        assert person_data["Type"] == "NINO"
 
-        print(f"  ✓ Retrieved person data from GUID API")
-        print(f"    - NINO: {person_data.get('nino')}")
-        print(f"    - Name: {person_data.get('firstName')} {person_data.get('lastName')}")
-        print(f"    - GUID: {person_data.get('guid')}")
+        print(f"  ✓ Retrieved identifier: {person_data.get('Returned identifier of the type specified in the type field')}")
 
     def test_end_to_end_flow(self):
-        """Test complete end-to-end flow with all real services"""
+        """Test complete end-to-end flow with the new schema mapping"""
         print("\n→ Testing complete end-to-end flow...")
 
-        test_guid = "123e4567-e89b-12d3-a456-426614174000"
+        test_identifier = "123e4567-e89b-12d3-a456-426614174000"
+        test_correlation = "88888888-4444-4444-4444-121212121212"
 
-        # Step 1: Get credentials from Secrets Manager
-        print("  1. Getting credentials from AWS Secrets Manager...")
+        # Step 1 & 2: Get Credentials & Token
         client_id, secret = get_cognito_credentials()
-        assert client_id and secret, "Should retrieve credentials"
-        print(f"     ✓ Got credentials")
-
-        # Step 2: Get OAuth token from Cognito
-        print("  2. Getting OAuth token from AWS Cognito...")
         access_token = get_cognito_token(client_id, secret)
-        assert access_token, "Should get OAuth token"
-        print(f"     ✓ Got OAuth token")
 
-        # Step 3: Call GUID API
-        print("  3. Calling GUID API with Bearer token...")
-        person_data = call_guid_api(access_token, test_guid)
-        assert person_data['nino'] == 'AB123456C', "Should get expected NINO"
-        print(f"     ✓ Got person data (NINO: {person_data['nino']})")
-
-        print(f"\n  ✓ Complete end-to-end flow successful!")
+        # Step 3: Call GUID API (Signature update)
+        person_data = call_guid_api(access_token, test_identifier, test_correlation)
+        
+        # UPDATED: Check for the DTO field name
+        returned_nino = person_data.get("Returned identifier of the type specified in the type field")
+        assert returned_nino == 'AB123456C' 
+        print(f"     ✓ Got expected NINO: {returned_nino}")
 
     def test_token_caching_reduces_cognito_calls(self):
         """Verify token is cached and reused"""

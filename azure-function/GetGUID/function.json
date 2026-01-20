@@ -6,10 +6,8 @@
       "type": "httpTrigger",
       "direction": "in",
       "name": "req",
-      "methods": [
-        "post"
-      ],
-      "route": "GetGUID"
+      "methods": ["get"],
+      "route": "guid-translation-service/v1/dwp-guid"
     },
     {
       "type": "http",
