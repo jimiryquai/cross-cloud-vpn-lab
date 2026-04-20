@@ -5,7 +5,6 @@ These tests call real AWS Secrets Manager, Cognito, and the GUID API.
 No mocks - testing actual integration.
 
 Prerequisites:
-- AWS credentials configured (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
 - Environment variables set (see TEST-STRATEGY.md)
 - Real AWS resources deployed (Secrets Manager, Cognito, GUID API)
 """
@@ -34,10 +33,6 @@ class TestRealAWSIntegration:
     def setup_env(self):
         """Ensure AWS environment variables are set"""
         required = [
-            'AWS_ACCESS_KEY_ID',
-            'AWS_SECRET_ACCESS_KEY',
-            'AWS_REGION',
-            'AWS_SECRET_NAME',
             'COGNITO_DOMAIN',
             'GUID_API_URL'
         ]

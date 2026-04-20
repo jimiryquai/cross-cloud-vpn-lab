@@ -1,0 +1,47 @@
+flowchart TB
+    subgraph phase1["Phase 1: Synchronous — File Upload and Validation"]
+        direction TB
+        A["User uploads CSV via<br/>Canvas App attachment control"]
+        B["Power Automate Flow<br/>triggered with blob URL"]
+        C["Decode base64 to CSV string"]
+        D["Validate CSV:<br/>Header check,<br/>Config record check,<br/>Date range vs Dataverse,<br/>Duplicate detection"]
+        E{Valid?}
+        F["Return validation errors<br/>to Canvas App within 2 mins"]
+        G["Validation passed —<br/>trigger Phase 2"]
+        A --> B
+        B --> C
+        C --> D
+        D --> E
+        E -->|No| F
+        E -->|Yes| G
+    end
+
+    subgraph phase2["Phase 2: Asynchronous — NINO to GUID Translation"]
+        direction TB
+        H["Call ProcessCSV Azure Function<br/>via Custom Connector"]
+        I["Function returns 202 Accepted + jobId"]
+        J["Flow polls status endpoint<br/>using Do Until loop"]
+        K["Azure Function processes internally:<br/>Parse CSV, Extract NINOs,<br/>Chunk into 5k batches,<br/>Bulk translate via AWS API,<br/>Replace NINOs with GUIDs,<br/>Rebuild CSV"]
+        L{Success?}
+        M["Return error to Flow"]
+        N["Return modified CSV with GUIDs"]
+        G --> H
+        H --> I
+        I --> J
+        J --> K
+        K --> L
+        L -->|No| M
+        L -->|Yes| N
+    end
+
+    subgraph phase3["Phase 3: Asynchronous — Dataverse Import"]
+        direction TB
+        O["Power Automate calls ParseImport"]
+        P["TransformImport"]
+        Q["ImportRecordsImport"]
+        R["Records imported into Dataverse"]
+        N --> O
+        O --> P
+        P --> Q
+        Q --> R
+    end

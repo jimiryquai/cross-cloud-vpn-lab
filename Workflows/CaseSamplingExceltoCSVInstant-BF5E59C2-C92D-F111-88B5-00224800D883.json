@@ -1,0 +1,550 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_sharepointonline_1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "dwp_sharedsharepointonline_c3a3c"
+        },
+        "api": {
+          "name": "shared_sharepointonline"
+        }
+      },
+      "shared_webcontents_2": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "dwp_sharedwebcontents_206a9"
+        },
+        "api": {
+          "name": "shared_webcontents"
+        }
+      },
+      "shared_office365_1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "dwp_sharedoffice365_054c6"
+        },
+        "api": {
+          "name": "shared_office365"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "FQM Shared Documents (dwp_FQMSharedDocuments)": {
+          "defaultValue": "https://dwpgovuk.sharepoint.com/sites/SRO-23513",
+          "type": "String",
+          "metadata": {
+            "schemaName": "dwp_FQMSharedDocuments",
+            "description": "The SharePoint URL of the FQM SharePoint site used for file storage."
+          }
+        }
+      },
+      "staticResults": {
+        "Create_file0": {
+          "status": "Failed",
+          "error": {
+            "code": "InternalServerError",
+            "message": "Testing Errors Variable in Catch Block"
+          }
+        }
+      },
+      "triggers": {
+        "manual": {
+          "metadata": {
+            "operationMetadataId": "e1f6e66b-feda-4d6e-9b6d-d9436dcd82cd"
+          },
+          "type": "Request",
+          "kind": "PowerAppV2",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "title": "FileName",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please enter your input",
+                  "x-ms-content-hint": "TEXT"
+                },
+                "text_1": {
+                  "title": "FileContent",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please enter your input",
+                  "x-ms-content-hint": "TEXT"
+                }
+              },
+              "required": [
+                "text",
+                "text_1"
+              ]
+            }
+          }
+        }
+      },
+      "actions": {
+        "Try": {
+          "actions": {
+            "Run_URL": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "2f4bdebb-e69b-49a8-9222-75dd330181ac"
+              },
+              "type": "Compose",
+              "inputs": "@concat('https://make.powerautomate.com/environments/', workflow()?['tags']?['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']?['name'])"
+            },
+            "Get_file_content": {
+              "runAfter": {
+                "Create_file": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "01cd88dd-28e2-4c84-9f69-9945a85193b9"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_sharepointonline_1",
+                  "operationId": "GetFileContent",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                },
+                "parameters": {
+                  "dataset": "@parameters('FQM Shared Documents (dwp_FQMSharedDocuments)')",
+                  "id": "@outputs('Create_file')?['body/Id']",
+                  "inferContentType": true
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Create_file": {
+              "runAfter": {
+                "Run_URL": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "bf6dd104-5deb-4bae-9271-ee424590328b"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_sharepointonline_1",
+                  "operationId": "CreateFile",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                },
+                "parameters": {
+                  "dataset": "@parameters('FQM Shared Documents (dwp_FQMSharedDocuments)')",
+                  "folderPath": "/Shared Documents",
+                  "name": "@triggerBody()['text']",
+                  "body": "@base64ToBinary(triggerBody()['text_1'])"
+                },
+                "authentication": "@parameters('$authentication')"
+              },
+              "runtimeConfiguration": {
+                "contentTransfer": {
+                  "transferMode": "Chunked"
+                },
+                "staticResult": {
+                  "staticResultOptions": "Disabled",
+                  "name": "Create_file0"
+                }
+              }
+            },
+            "Get_file_properties": {
+              "runAfter": {
+                "Get_file_content": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9a58d89d-e80b-4dca-87d7-347d1f3a4a24"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_sharepointonline_1",
+                  "operationId": "GetFileItem",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                },
+                "parameters": {
+                  "dataset": "@parameters('FQM Shared Documents (dwp_FQMSharedDocuments)')",
+                  "table": "3a6b7cc4-0a32-4eaf-b31b-8ece84700681",
+                  "id": "@outputs('Create_file')?['body/ItemId']"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "GET_workbook_tables": {
+              "runAfter": {
+                "Get_file_properties": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "0ba6cf61-a640-4bf3-b279-148335feb7c6"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_webcontents_2",
+                  "operationId": "InvokeHttp",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_webcontents"
+                },
+                "parameters": {
+                  "request/method": "GET",
+                  "request/url": "https://graph.microsoft.com/v1.0/drives/@{outputs('Get_file_properties')?['body/{DriveId}']}/items/@{outputs('Get_file_properties')?['body/{DriveItemId}']}/workbook/tables"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Has_tables": {
+              "actions": {
+                "GET_workbook_table_data": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "808730b3-86f2-4078-a44c-30c28318aa9f"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_webcontents_2",
+                      "operationId": "InvokeHttp",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_webcontents"
+                    },
+                    "parameters": {
+                      "request/method": "GET",
+                      "request/url": "https://graph.microsoft.com/v1.0/drives/@{outputs('Get_file_properties')?['body/{DriveId}']}/items/@{outputs('Get_file_properties')?['body/{DriveItemId}']}/workbook/tables/@{encodeUriComponent(body('GET_workbook_tables')?['value'][0]?['name'])}/range",
+                      "request/headers": {
+                        "Accept": "application/json",
+                        "Conent-Type": "application/json"
+                      }
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                }
+              },
+              "runAfter": {
+                "GET_workbook_tables": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {
+                  "GET_worksheets": {
+                    "runAfter": {},
+                    "metadata": {
+                      "operationMetadataId": "dffde127-0e2e-479b-8017-7c60177a0559"
+                    },
+                    "type": "OpenApiConnection",
+                    "inputs": {
+                      "host": {
+                        "connectionName": "shared_webcontents_2",
+                        "operationId": "InvokeHttp",
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_webcontents"
+                      },
+                      "parameters": {
+                        "request/method": "GET",
+                        "request/url": "https://graph.microsoft.com/v1.0/drives/@{outputs('Get_file_properties')?['body/{DriveId}']}/items/@{outputs('Get_file_properties')?['body/{DriveItemId}']}/workbook/worksheets"
+                      },
+                      "authentication": "@parameters('$authentication')"
+                    }
+                  },
+                  "GET_worksheet_data": {
+                    "runAfter": {
+                      "GET_worksheets": [
+                        "Succeeded"
+                      ]
+                    },
+                    "metadata": {
+                      "operationMetadataId": "dffde127-0e2e-479b-8017-7c60177a0559"
+                    },
+                    "type": "OpenApiConnection",
+                    "inputs": {
+                      "host": {
+                        "connectionName": "shared_webcontents_2",
+                        "operationId": "InvokeHttp",
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_webcontents"
+                      },
+                      "parameters": {
+                        "request/method": "GET",
+                        "request/url": "https://graph.microsoft.com/v1.0/drives/@{outputs('Get_file_properties')?['body/{DriveId}']}/items/@{outputs('Get_file_properties')?['body/{DriveItemId}']}/workbook/worksheets('@{body('GET_worksheets')?['value']?[0]?['name']}')/usedRange"
+                      },
+                      "authentication": "@parameters('$authentication')"
+                    }
+                  }
+                }
+              },
+              "expression": {
+                "greater": [
+                  "@length(outputs('GET_workbook_tables')?['body']?['value'])",
+                  0
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "6beb7086-8552-4d8e-88c7-ffb19758d94d"
+              },
+              "type": "If",
+              "description": "If it doesn't have tables then we need to get the used range from the specified worksheet"
+            },
+            "Data": {
+              "runAfter": {
+                "Has_tables": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "3a4c7e90-4f9c-4c5c-8e34-4d84c890e5f8"
+              },
+              "type": "Compose",
+              "inputs": "@coalesce(body('GET_workbook_table_data')?['values'], body('GET_worksheet_data')?['values'])"
+            },
+            "Headers": {
+              "runAfter": {
+                "Data": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "6311aeeb-b2a8-4b2b-95ed-a05f0302625c"
+              },
+              "type": "Compose",
+              "inputs": "@first(outputs('Data'))"
+            },
+            "Map_CSV": {
+              "runAfter": {
+                "Headers": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "391b8c10-f406-43e7-999b-fde5ce63a172"
+              },
+              "type": "Select",
+              "inputs": {
+                "from": "@skip(outputs('Data'), 1)",
+                "select": {
+                  "employee_id": "@item()?[0]",
+                  "NINO": "@item()?[1]",
+                  "EVENT_ID": "@item()?[2]",
+                  "event_date": "@addDays('1899-12-30', int(item()?[3]), 'yyyy-MM-dd')",
+                  "Ref": "@item()?[4]"
+                }
+              }
+            },
+            "base64": {
+              "runAfter": {
+                "Create_CSV_table": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "b62e8b26-dacc-40bb-90e1-70e4b232e101"
+              },
+              "type": "Compose",
+              "inputs": "@base64(body('Create_CSV_table'))"
+            },
+            "Create_CSV_table": {
+              "runAfter": {
+                "Map_CSV": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "16d6f66c-adf9-4b96-8a11-3fd7a4a70237"
+              },
+              "type": "Table",
+              "inputs": {
+                "from": "@body('Map_CSV')",
+                "format": "CSV"
+              }
+            }
+          },
+          "runAfter": {
+            "Initialize_variable_Errors": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "443aba87-938d-4fc2-9e4c-4d3899d73830"
+          },
+          "type": "Scope"
+        },
+        "Initialize_variable_Errors": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "a1d60570-6607-46c8-b3fd-21e93b162a0d"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "Errors",
+                "type": "array"
+              }
+            ]
+          }
+        },
+        "Catch": {
+          "actions": {
+            "Send_Error_Notification_Email": {
+              "runAfter": {
+                "Set_Errors": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "66666666-7777-8888-9999-aaaaaaaaaaaa"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_office365_1",
+                  "operationId": "SendEmailV2",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                },
+                "parameters": {
+                  "emailMessage/To": "James.Ryan@dwp.gov.uk;Maheshwar.Yanala@dwp.gov.uk",
+                  "emailMessage/Subject": "Action Required: Data Ingestion Automation Error",
+                  "emailMessage/Body": "<style>\n/* GDS Table Styles */\ntable {\nborder-collapse: collapse;\nwidth: 100%;\nfont-family: \"GDS Transport\", Arial, sans-serif;\nfont-size: 19px;\ncolor: #0b0c0c;\nmargin-bottom: 30px;\n}\nth {\nborder-bottom: 1px solid #b1b4b6;\ntext-align: left;\npadding: 10px 20px 10px 0;\nfont-weight: 700;\n}\ntd {\nborder-bottom: 1px solid #b1b4b6;\npadding: 10px 20px 10px 0;\ntext-align: left;\nvertical-align: top;\n}\ntr:last-child td {\nborder-bottom: none;\n}\n</style>\n\n<div style=\"font-family: Arial, sans-serif; font-size: 19px; color: #0b0c0c;\">\n\n<p>The data ingestion automation requires attention:</p>\n\n@{body('Create_Error_Table')}\n\n<br>\n<p><a href=\"@{outputs('Run_URL')}\">View Run History</a></p>\n</div>\n",
+                  "emailMessage/Importance": "High"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Create_Error_Table": {
+              "runAfter": {
+                "Filter_Failed": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "01a83cf9-4682-4f74-9cd4-7dad28af369f"
+              },
+              "type": "Table",
+              "inputs": {
+                "from": "@body('Filter_Failed')",
+                "format": "HTML",
+                "columns": [
+                  {
+                    "header": "Action",
+                    "value": "@item()?['name']"
+                  },
+                  {
+                    "header": "Code",
+                    "value": "@item()?['error']?['code']"
+                  },
+                  {
+                    "header": "Message",
+                    "value": "@item()?['error']?['message']"
+                  },
+                  {
+                    "header": "Time",
+                    "value": "@item()['endTime']"
+                  }
+                ]
+              }
+            },
+            "Filter_Failed": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "99d3e265-8a3f-4c07-b135-e2382418426f"
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@result('Try')",
+                "where": "@equals(item()?['status'], 'Failed')"
+              }
+            },
+            "Set_Errors": {
+              "runAfter": {
+                "Create_Error_Table": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "93ef56c9-176e-4593-8f03-fca7c5ed9595"
+              },
+              "type": "SetVariable",
+              "inputs": {
+                "name": "Errors",
+                "value": [
+                  {
+                    "RowNumber": "N/A",
+                    "Data": "N/A",
+                    "ErrorCode": "@{body('Filter_Failed')?[0]?['error']?['code']}",
+                    "ErrorMessage": "@{body('Filter_Failed')?[0]?['error']?['message']}"
+                  }
+                ]
+              }
+            }
+          },
+          "runAfter": {
+            "Try": [
+              "Failed",
+              "Skipped",
+              "TimedOut"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "22222222-3333-4444-5555-666666666666"
+          },
+          "type": "Scope"
+        },
+        "Finally": {
+          "actions": {
+            "Respond_to_a_Power_App_or_flow": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "d889040c-2b98-4ba2-8e5c-e10f79aa9724"
+              },
+              "type": "Response",
+              "kind": "PowerApp",
+              "inputs": {
+                "statusCode": 200,
+                "body": {
+                  "content": "@{outputs('base64')?['body']}"
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "title": "content",
+                      "x-ms-dynamically-added": true,
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "Catch": [
+              "Succeeded",
+              "Failed",
+              "Skipped",
+              "TimedOut"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "d8daf21a-f998-4d60-b46f-b1b07078127b"
+          },
+          "type": "Scope"
+        }
+      }
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}

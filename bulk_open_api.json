@@ -1,0 +1,302 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "dwp-guid-service api",
+    "description": "dwp guid service",
+    "version": "0.2.3"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8999",
+      "description": "Generated server url"
+    }
+  ],
+  "paths": {
+    "/dwp-guid-bulk-service/v1/{bulk-activity}": {
+      "post": {
+        "tags": [
+          "DWP Guid Bulk Service"
+        ],
+        "summary": "BULK Retrieve DWP GUID or NINO as requested",
+        "description": "BULK Retrieve DWP GUID or NINO as requested",
+        "operationId": "bullkOperate",
+        "parameters": [
+          {
+            "name": "bulk-activity",
+            "in": "path",
+            "description": "Type of Bulk Activity Requested kebab case will be converted to enum if sent",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "TRANSFORM_DWP_GUID_TO_NINO",
+                "TRANSFORM_NINO_TO_DWP_GUID"
+              ]
+            }
+          },
+          {
+            "name": "correlation-id",
+            "in": "header",
+            "description": "correlation-id: must match ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ .",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "JWT token which will be used to establish the consumer requesting the service. Currently this is managed using Cognito identities provided by the citizen information kubernetes platform. Please provide details of an identity already established during the on-boarding process or engage with the team to establish a new identity. An authorisation header must be provided if a consumer header is not used",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-forwarded-client-cert",
+            "in": "header",
+            "description": "x-forwarded-client-cert header value signifies the calling service. This header is automatically populated by the CI k8s platform",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "description": "Acceptable x-request-id format is ^[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}$ . This value should be populated by the originator of the activity as it will allow the various platform tracing tools to operate properly",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Json object comprising\n<ul>\n<li>numberOfRecords : number of records being exchanged</li>\n<li>requestRef : String for consumer use request and response object for exchange will be the same</li>\n<li>records : json array of keys and identifiers, the key is required to be unique and will ensure that the keyed identifier\n in the request object matches the same persons identifier in the response object, i.e, if key 1 is used in the request for John Doe's NINO\n in the response key 1 will hold John Doe's DWP-GUID</li>\n",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/recordHolder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Returns a Json object comprising\n<ul>\n<li>numberOfRecords : number of records being exchanged</li>\n<li>requestRef : String for consumer use request and response object for exchange will be the same</li>\n<li>records : json array of keys and identifiers, the key is required to be unique and will ensure that the keyed identifier\n in the request object matches the same persons identifier in the response object, i.e, if key 1 is used in the request for John Doe's NINO\n in the response key 1 will hold John Doe's DWP-GUID</li>\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/recordHolder"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request\n<p>the request was invalid there are several reasons why this could occur</p>\n<table>\n  <tr>\n  <th>description</th><th>status</th><th>dto message</th>\n  </tr>\n  <tr>\n    <td>The Identifier does not conform to basic regex structure of the identifier.</td>\n    <td>400 BAD_REQUEST</td><td>\"Input identifier not valid\"</td>\n  </tr>\n  <tr>\n    <td>An illegitimate exchange has been requested (It is unlikely an illegitimate request would be authorised).</td>\n    <td>400 BAD_REQUEST</td>\n    <td>\"A serious error has occurred\"</td>\n  </tr>\n  <tr>\n    <td>The JWT Token is not correctly formed or recognised</td>\n    <td>400 BAD_REQUEST</td>\n    <td>\n      <ul>\n        <li>\"JW Token was null\"</li>\n        <li>\"An error occurred when decoding JW Token\"</li>\n        <li>\"JWT token malformed not three different component\"\"</li>\n        <li>\"JWT tokens user is unknown\"</li>\n      <ul>\n    </td>\n  </tr>\n  <tr>\n    <td>Unable to resolve the consumer requesting the service</td>\n    <td>400 BAD_REQUEST</td>\n    <td>\n      <ul>\n        <li>\"No X-forwarded Header value\"\"</li>\n        <li>\"Unknown Consumer\"\"</li>\n        <li>\"Unable to extract JWTToken or Customer ID header\"\"</li>\n        <li>\"Unknown Consumer Namespace\"</li>\n      </ul>\n    </td>\n    </tr>\n  <tr>\n      <td>number of corrupt identifiers in request or errors occurring during processing exceeds configured threshold for the consumer</td>\n      <td>400 BAD_REQUEST</td>\n      <td>\"Errors exceed acceptable threshold for XXXXXXXXX\"</td>\n  </tr>\n  <tr>\n    <td>Corrupt json body</td>\n    <td>400 BAD_REQUEST</td>\n    <td>\n      <ul>\n        <li>\"JSON decoding error: Unrecognized field . . . .  \"</li>\n        <li>\"Did not receive X unique keys\"</l1>\n        <li>\"Number of records requested does not match the number of records sent\"</li>\n      </ul>\n    </td>\n  </tr>\n</table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "<p>The consumer is not entitled to use the service requested</p><table><tr><th>description</th><th>status</th><th>dto message</th> </tr><tr><td>The consumer is not entitled to use the service requested</td><td>403 FORBIDDEN</td><td>\"User %s is not permitted to use service %s\" or \"User %s is not permitted to conduct a request for %s using %s\"</td> </tr></table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "<p>The service has had an unexpected error</p><table><tr><th>description</th><th>status</th><th>dto message</th> </tr><tr><td>unexpected value presented</td><td>500 INTERNAL_SERVER_ERROR</td><td>\"Received Enum that wasn't managed by the repository\" or \"Received Enum that wasn't managed by the Extract Identifier Function\"</td> </tr><tr><td>Byte encoding error</td><td>500 INTERNAL_SERVER_ERROR</td><td>\"Error occurred when converting to bytes\"</td> </tr></table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found\n<p>The URL presented is unknown</p>\n<table>\n  <tr>\n    <th>description</th><th>status</th><th>dto message</th>\n  </tr>\n  <tr>\n    <td>Not found resources</td><td>404 NOT_FOUND </td><td>\"404 NOT_FOUND\"</td>\n  </tr>\n</table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "<p>The consumer has reached it's daily requests threshold</p><table><tr><th>description</th><th>status</th></tr><tr><td>The consumer has reached it's daily requests threshold</td><td>422 TOO MANY REQUESTS</td> </tr></table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dwp-guid-bulk-service/v1/remaining-daily-allowance": {
+      "get": {
+        "tags": [
+          "DWP Guid Bulk Service"
+        ],
+        "operationId": "retrieve",
+        "parameters": [
+          {
+            "name": "correlation-id",
+            "in": "header",
+            "description": "correlation-id: must match ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ .",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "JWT token which will be used to establish the consumer requesting the service. Currently this is managed using Cognito identities provided by the citizen information kubernetes platform. Please provide details of an identity already established during the on-boarding process or engage with the team to establish a new identity. An authorisation header must be provided if a consumer header is not used",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-forwarded-client-cert",
+            "in": "header",
+            "description": "x-forwarded-client-cert header value signifies the calling service. This header is automatically populated by the CI k8s platform",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "description": "Acceptable x-request-id format is ^[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}$ . This value should be populated by the originator of the activity as it will allow the various platform tracing tools to operate properly",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "IdentifierIndexMap": {
+        "description": "Array of keys and identifiers. Keys are required to be unique",
+        "example": [
+          {
+            "key": 1,
+            "value": "QQ000000"
+          },
+          {
+            "key": 2,
+            "value": "QQ000001"
+          }
+        ],
+        "properties": {
+          "key": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unique key value of the identifier - thus sent identifier for specific individual will have the same key as the response identifier ",
+            "example": 1
+          },
+          "value": {
+            "type": "string",
+            "description": "The identifier - for the individual either a nino or dwp-guid",
+            "example": "QQ000000 or 0000000008000000000900000000030000000004000000000500000000062368"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ]
+      },
+      "recordHolder": {
+        "description": "Json Object to hold details of the request and response for bulk request. Has fields for number of requests, requestRef and Array of keys and identifiers",
+        "properties": {
+          "records": {
+            "type": "array",
+            "description": "Array of keys and identifiers. Keys are required to be unique",
+            "example": [
+              {
+                "key": 1,
+                "value": "QQ000000"
+              },
+              {
+                "key": 2,
+                "value": "QQ000001"
+              }
+            ],
+            "items": {
+              "$ref": "#/components/schemas/IdentifierIndexMap"
+            },
+            "maxItems": 10000,
+            "minItems": 1
+          },
+          "numberOfRecords": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of records requested. A minimum of 1 and a maximum of 10000 records can be requested in a api request",
+            "example": 10000,
+            "maximum": 10000,
+            "minimum": 1
+          },
+          "requestRef": {
+            "type": "string",
+            "description": "Reference number for consumer use. The response object will contain the same requestRef as the request object if included and will not contain a requestRef if the request did not include one. Limited to 64 characters",
+            "example": "abcdef12345",
+            "pattern": "^[a-zA-Z0-9]{0,64}$"
+          }
+        },
+        "required": [
+          "numberOfRecords",
+          "records"
+        ]
+      },
+      "error": {
+        "description": "Json object to hold status and explanatory message regarding failed request",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Http status",
+            "example": "422 UNPROCESSABLE_ENTITY"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

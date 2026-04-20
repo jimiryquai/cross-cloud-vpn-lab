@@ -1,0 +1,800 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "dwp_sharedcommondataserviceforapps_03be6"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
+      },
+      "shared_office365_1": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "dwp_sharedoffice365_054c6"
+        },
+        "api": {
+          "name": "shared_office365"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "metadata": {
+            "operationMetadataId": "2c8bf52f-b01f-4691-bdc2-c9b6b3e5729a"
+          },
+          "type": "Request",
+          "kind": "PowerAppV2",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "title": "File Content",
+                  "type": "object",
+                  "x-ms-dynamically-added": true,
+                  "description": "Please select file or image",
+                  "x-ms-content-hint": "FILE",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "contentBytes": {
+                      "type": "string",
+                      "format": "byte"
+                    }
+                  }
+                }
+              },
+              "required": []
+            }
+          }
+        }
+      },
+      "actions": {
+        "Try": {
+          "actions": {
+            "Create_Data_Import": {
+              "runAfter": {
+                "Compose": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "90075df4-a9a0-4988-ba86-fbd34527b58f"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "imports",
+                  "item/isimport": true,
+                  "item/modecode": 0,
+                  "item/sendnotification": false,
+                  "item/statuscode": 0,
+                  "item/name": "@outputs('FileName')"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "FileExtension": {
+              "runAfter": {
+                "Source": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9868d0fe-f15c-48e1-ba6a-81a2aa6d7c0c"
+              },
+              "type": "Compose",
+              "inputs": "@last(split(triggerBody()?['file']?['name'],'.'))"
+            },
+            "Create_Data_Map": {
+              "runAfter": {
+                "Compose": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "195952fe-a6cf-4e32-8695-d12ef994a481"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "importmaps",
+                  "item/entitiesperfile": 1,
+                  "item/statuscode": 1,
+                  "item/iswizardcreated": false,
+                  "item/name": "@concat('ESA',utcNow())",
+                  "item/importmaptype": 1,
+                  "item/source": "@outputs('Source')"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Source": {
+              "runAfter": {
+                "FileName": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "5fe932f1-e04d-4883-8b40-0486706a6e92"
+              },
+              "type": "Compose",
+              "inputs": "@first(split(triggerBody()?['file']?['name'], '.'))"
+            },
+            "Is_Valid_For_Import": {
+              "actions": {
+                "ParseImport": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "879c0158-36b5-42d2-af4a-8a92e88ee3f7"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "PerformBoundAction",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "imports",
+                      "actionName": "Microsoft.Dynamics.CRM.ParseImport",
+                      "recordId": "@outputs('Create_Data_Import')?['body/importid']"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Do_until_Parsing_Complete": {
+                  "actions": {
+                    "Delay": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "fd5188a9-419a-48fb-a2c9-f247c2f9b27e"
+                      },
+                      "type": "Wait",
+                      "inputs": {
+                        "interval": {
+                          "count": 3,
+                          "unit": "Second"
+                        }
+                      }
+                    },
+                    "Get_Import_Parsing_Complete": {
+                      "runAfter": {
+                        "Delay": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "84b24a39-41ca-4323-8b60-d6c2c0bb7295"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "GetItem",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "importfiles",
+                          "recordId": "@outputs('Create_Import')?['body/importfileid']",
+                          "$select": "processingstatus"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    },
+                    "Set_processingStatus_Parsing_Complete": {
+                      "runAfter": {
+                        "Get_Import_Parsing_Complete": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "921d6742-18ef-43e0-9645-561e7d903d7b"
+                      },
+                      "type": "SetVariable",
+                      "inputs": {
+                        "name": "processingStatus",
+                        "value": "@outputs('Get_Import_Parsing_Complete')?['body/processingstatus']"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "ParseImport": [
+                      "Succeeded"
+                    ]
+                  },
+                  "expression": "@equals(variables('processingStatus'), 3)",
+                  "limit": {
+                    "count": 60,
+                    "timeout": "PT1H"
+                  },
+                  "metadata": {
+                    "operationMetadataId": "3f6e7a6c-34a2-4342-b1e9-4227d02ee3ce"
+                  },
+                  "type": "Until"
+                },
+                "TransformImport": {
+                  "runAfter": {
+                    "Do_until_Parsing_Complete": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "0be20fe5-962d-4467-bc34-783b4da39c67"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "PerformUnboundAction",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "actionName": "TransformImport",
+                      "item/ImportId": "@outputs('Create_Data_Import')?['body/importid']"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Do_until_Transformation_Complete": {
+                  "actions": {
+                    "Delay_3s": {
+                      "runAfter": {},
+                      "metadata": {
+                        "operationMetadataId": "fd5188a9-419a-48fb-a2c9-f247c2f9b27e"
+                      },
+                      "type": "Wait",
+                      "inputs": {
+                        "interval": {
+                          "count": 3,
+                          "unit": "Second"
+                        }
+                      }
+                    },
+                    "Get_Import_Transformation_Complete": {
+                      "runAfter": {
+                        "Delay_3s": [
+                          "Succeeded"
+                        ]
+                      },
+                      "metadata": {
+                        "operationMetadataId": "84b24a39-41ca-4323-8b60-d6c2c0bb7295"
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_commondataserviceforapps",
+                          "operationId": "GetItem",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                        },
+                        "parameters": {
+                          "entityName": "importfiles",
+                          "recordId": "@outputs('Create_Import')?['body/importfileid']",
+                          "$select": "processingstatus"
+                        },
+                        "authentication": "@parameters('$authentication')"
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "TransformImport": [
+                      "Succeeded"
+                    ]
+                  },
+                  "expression": "@equals(variables('processingStatus'), 8)",
+                  "limit": {
+                    "count": 60,
+                    "timeout": "PT1H"
+                  },
+                  "metadata": {
+                    "operationMetadataId": "3f6e7a6c-34a2-4342-b1e9-4227d02ee3ce"
+                  },
+                  "type": "Until"
+                },
+                "ImportRecordsImport": {
+                  "runAfter": {
+                    "Do_until_Transformation_Complete": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "2949e7c9-c310-4258-abc7-9a5d04d219dd"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "PerformBoundAction",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "imports",
+                      "actionName": "Microsoft.Dynamics.CRM.ImportRecordsImport",
+                      "recordId": "@outputs('Create_Data_Import')?['body/importid']"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                }
+              },
+              "runAfter": {
+                "Get_Data_Map": [
+                  "Succeeded"
+                ]
+              },
+              "expression": {
+                "equals": [
+                  "@outputs('Get_Data_Map')?['body/isvalidforimport']",
+                  true
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "7ec3a797-a55e-425b-8a41-3af35939428e"
+              },
+              "type": "If"
+            },
+            "Run_URL": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "2f4bdebb-e69b-49a8-9222-75dd330181ac"
+              },
+              "type": "Compose",
+              "inputs": "@concat('https://make.powerautomate.com/environments/', workflow()?['tags']?['environmentName'], '/flows/', workflow()?['name'], '/runs/', workflow()?['run']?['name'])"
+            },
+            "FileName": {
+              "runAfter": {
+                "Run_URL": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "15f41075-76e3-4bef-bd61-6ccced5d9109"
+              },
+              "type": "Compose",
+              "inputs": "@triggerBody()?['file']?['name']"
+            },
+            "TargetEntity": {
+              "runAfter": {
+                "FileExtension": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "2819aaa3-4a23-4de6-aa3e-3d062ea1c42d"
+              },
+              "type": "Compose",
+              "inputs": "dwp_casesample"
+            },
+            "Create_Import": {
+              "runAfter": {
+                "Create_Data_Import": [
+                  "Succeeded"
+                ],
+                "Create_Data_Map": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "7c4f0c3a-0094-4203-9708-9ca1a03a2214"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "CreateRecord",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "importfiles",
+                  "item/content": "@variables('base64')",
+                  "item/datadelimitercode": 1,
+                  "item/fielddelimitercode": 2,
+                  "item/filetypecode": 0,
+                  "item/importid@odata.bind": "imports(@{outputs('Create_Data_Import')?['body/importid']})",
+                  "item/isfirstrowheader": true,
+                  "item/processcode": 1,
+                  "item/usesystemmap": false,
+                  "item/importmapid@odata.bind": "importmaps(@{outputs('Create_Data_Map')?['body/importmapid']})",
+                  "item/enableduplicatedetection": true,
+                  "item/name": "@outputs('FileName')",
+                  "item/source": "@outputs('Source')",
+                  "item/sourceentityname": "@outputs('Source')",
+                  "item/statuscode": 0,
+                  "item/targetentityname": "@outputs('TargetEntity')"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Apply_to_each": {
+              "foreach": "@variables('columnMappings')",
+              "actions": {
+                "Create_Column_Mappings": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "c2271c25-96fe-45b0-9fac-23be09c40e87"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connectionName": "shared_commondataserviceforapps",
+                      "operationId": "CreateRecord",
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                    },
+                    "parameters": {
+                      "entityName": "columnmappings",
+                      "item/importmapid@odata.bind": "importmaps(@{outputs('Create_Data_Map')?['body/importmapid']})",
+                      "item/sourceattributename": "@item()?['src']",
+                      "item/sourceentityname": "@outputs('Source')",
+                      "item/processcode": 1,
+                      "item/statuscode": 1,
+                      "item/targetattributename": "@item()?['tgt']",
+                      "item/targetentityname": "@outputs('TargetEntity')"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                }
+              },
+              "runAfter": {
+                "Create_Import": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "bcd2b119-6236-416a-b0db-5840b8572962"
+              },
+              "type": "Foreach",
+              "runtimeConfiguration": {
+                "concurrency": {
+                  "repetitions": 50
+                }
+              }
+            },
+            "Get_Data_Map": {
+              "runAfter": {
+                "Apply_to_each": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "78c56366-1f9e-4df6-b1da-40197714b50e"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_commondataserviceforapps",
+                  "operationId": "GetItem",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps"
+                },
+                "parameters": {
+                  "entityName": "importmaps",
+                  "recordId": "@outputs('Create_Data_Map')?['body/importmapid']",
+                  "$select": "isvalidforimport"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            },
+            "Compose": {
+              "runAfter": {
+                "TargetEntity": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "735a538c-13a9-4704-86cf-39f87f843ac6"
+              },
+              "type": "Compose",
+              "inputs": "Placeholder for GUID Service"
+            }
+          },
+          "runAfter": {
+            "Initialize_parsetable": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "a1b2c3d4-e5f6-7890-abcd-ef1234567891"
+          },
+          "type": "Scope"
+        },
+        "Catch": {
+          "actions": {
+            "Filter_Failed": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "57409516-efc7-46e6-a6a4-21ec832e3278"
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@result('Try')",
+                "where": "@equals(item()?['status'], 'Failed')"
+              }
+            },
+            "Map_Failed": {
+              "runAfter": {
+                "Filter_Failed": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "f0032f56-2c04-4048-8ee9-6e189f932416"
+              },
+              "type": "Select",
+              "inputs": {
+                "from": "@body('Filter_Failed')",
+                "select": {
+                  "action": "@item()?['name']",
+                  "code": "@item()?['error']?['code']",
+                  "message": "@item()?['error']?['message']",
+                  "time": "@item()?['endTime']"
+                }
+              }
+            },
+            "Create_Error_Table": {
+              "runAfter": {
+                "Map_Failed": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "01a83cf9-4682-4f74-9cd4-7dad28af369f"
+              },
+              "type": "Table",
+              "inputs": {
+                "from": "@body('Map_Failed')",
+                "format": "HTML"
+              }
+            },
+            "Send_Error_Notification_Email": {
+              "runAfter": {
+                "Create_Error_Table": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "66666666-7777-8888-9999-aaaaaaaaaaaa"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "connectionName": "shared_office365_1",
+                  "operationId": "SendEmailV2",
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                },
+                "parameters": {
+                  "emailMessage/To": "Maheshwar.Yanala@dwp.gov.uk",
+                  "emailMessage/Subject": "Action Required: Data Ingestion Automation Error",
+                  "emailMessage/Body": "<style>\n/* GDS Table Styles */\ntable {\nborder-collapse: collapse;\nwidth: 100%;\nfont-family: \"GDS Transport\", Arial, sans-serif;\nfont-size: 19px;\ncolor: #0b0c0c;\nmargin-bottom: 30px;\n}\nth {\nborder-bottom: 1px solid #b1b4b6;\ntext-align: left;\npadding: 10px 20px 10px 0;\nfont-weight: 700;\n}\ntd {\nborder-bottom: 1px solid #b1b4b6;\npadding: 10px 20px 10px 0;\ntext-align: left;\nvertical-align: top;\n}\ntr:last-child td {\nborder-bottom: none;\n}\n</style>\n\n<div style=\"font-family: Arial, sans-serif; font-size: 19px; color: #0b0c0c;\">\n\n<p>The data ingestion automation requires attention:</p>\n\n@{body('Create_Error_Table')}\n\n<br>\n<p><a href=\"@{outputs('Run_URL')}\">View Run History</a></p>\n</div>\n",
+                  "emailMessage/Importance": "High"
+                },
+                "authentication": "@parameters('$authentication')"
+              }
+            }
+          },
+          "runAfter": {
+            "Try": [
+              "Failed",
+              "Skipped",
+              "TimedOut"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "b2c3d4e5-f6a7-8901-bcde-f12345678902"
+          },
+          "type": "Scope"
+        },
+        "Finally": {
+          "actions": {
+            "HTTP_Response": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "23c5aebf-85ba-4679-bbac-a7931eafb237"
+              },
+              "type": "Response",
+              "kind": "Http",
+              "inputs": {
+                "statusCode": 200,
+                "body": {
+                  "content": "@{variables('base64')}",
+                  "status": "@{variables('status')}",
+                  "message": "@{variables('message')}",
+                  "errors": "@coalesce(body('Map_Failed'), json('[]'))"
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "content": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "Catch": [
+              "Succeeded",
+              "Failed",
+              "Skipped",
+              "TimedOut"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "c3d4e5f6-a7b8-9012-cdef-123456789013"
+          },
+          "type": "Scope"
+        },
+        "Initialize_base64": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "db8908d5-5893-424c-8fd4-684bde051bef"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "base64",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "Initialize_status": {
+          "runAfter": {
+            "Initialize_base64": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "32ee2890-7dc4-4c08-b3c0-e5ca39dd207f"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "status",
+                "type": "string",
+                "value": "ok"
+              }
+            ]
+          }
+        },
+        "Initialize_message": {
+          "runAfter": {
+            "Initialize_status": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "db8908d5-5893-424c-8fd4-684bde051bef"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "message",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "Initialize_columnMappings": {
+          "runAfter": {
+            "Initialize_message": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "07aaebc5-8e10-4997-9ab3-c040e71404be"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "columnMappings",
+                "type": "array",
+                "value": [
+                  {
+                    "src": "event_date",
+                    "tgt": "dwp_eventdate"
+                  },
+                  {
+                    "src": "employee_id",
+                    "tgt": "dwp_employeeid"
+                  },
+                  {
+                    "src": "EVENT_ID",
+                    "tgt": "dwp_eventtype"
+                  },
+                  {
+                    "src": "NINO",
+                    "tgt": "dwp_nino"
+                  },
+                  {
+                    "src": "Ref",
+                    "tgt": "dwp_importlogreference"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "Initialize_parsetable": {
+          "runAfter": {
+            "Initialize_variable": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "662f45ee-858e-418c-ad22-07219eec2c40"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "parsetable",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "Initialize_variable": {
+          "runAfter": {
+            "Initialize_columnMappings": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "c7db6b37-07a6-4f5e-b40a-f6bf388cd3b0"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "processingStatus",
+                "type": "integer",
+                "value": 1
+              }
+            ]
+          }
+        }
+      }
+    },
+    "templateName": ""
+  },
+  "schemaVersion": "1.0.0.0"
+}

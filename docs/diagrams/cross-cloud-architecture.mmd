@@ -1,0 +1,30 @@
+flowchart LR
+    subgraph azure["Azure"]
+        direction TB
+        PP["Power Platform<br/>Canvas App + Flow"]
+        CC["Custom Connector<br/>OAuth2 Client Credentials"]
+        AF["Azure Function<br/>ProcessCSV"]
+        KV["Azure Key Vault<br/>SP secret +<br/>Cognito creds?"]
+        PP --> CC
+        CC --> AF
+        AF -.->|Key Vault references| KV
+    end
+
+    subgraph network["CIA Inter-Cloud"]
+        direction TB
+        FW["Inter-Cloud Firewall<br/>decryption bypass"]
+        VPN["IPsec Tunnel<br/>~1.25 Gbps"]
+        FW --> VPN
+    end
+
+    subgraph aws["AWS"]
+        direction TB
+        TGW["Transit Gateway"]
+        COG["AWS Cognito<br/>OAuth2 tokens"]
+        API["GUID Bulk API<br/>API Gateway"]
+        TGW --> COG
+        TGW --> API
+    end
+
+    AF -->|mTLS via Azure VNet| FW
+    VPN --> TGW

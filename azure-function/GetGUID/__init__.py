@@ -3,13 +3,15 @@ import json
 import os
 from datetime import datetime, timedelta
 import azure.functions as func
-import boto3
-from botocore.exceptions import ClientError
+from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
 import requests
 from requests.auth import HTTPBasicAuth
 
-# --- Token Caching Logic ---
+
+# --- Token & Secret Caching Logic ---
 _token_cache = {'access_token': None, 'expires_at': None}
+_secrets_cache = {'client_id': None, 'client_secret': None}
 
 def get_cached_token():
     if _token_cache['access_token'] and _token_cache['expires_at']:
@@ -21,25 +23,31 @@ def cache_token(access_token, expires_in):
     _token_cache['access_token'] = access_token
     _token_cache['expires_at'] = datetime.now() + timedelta(seconds=expires_in)
 
-def get_cognito_credentials():
-    """Retrieve Cognito credentials from AWS Secrets Manager"""
-    try:
-        aws_access_key_id = os.environ.get('AWS_ACCESS_KEY_ID')
-        aws_secret_access_key = os.environ.get('AWS_SECRET_ACCESS_KEY')
-        aws_region = os.environ.get('AWS_REGION', 'eu-west-2')
-        secret_name = os.environ.get('AWS_SECRET_NAME', 'consumer/cognito/vpn-lab/credentials')
 
-        secrets_client = boto3.client(
-            'secretsmanager',
-            region_name=aws_region,
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key
-        )
-        response = secrets_client.get_secret_value(SecretId=secret_name)
-        secret_data = json.loads(response['SecretString'])
-        return secret_data['client_id'], secret_data['secret']
+def get_cognito_credentials():
+    """Retrieve Cognito credentials from Azure Key Vault (cached)"""
+    if _secrets_cache['client_id'] and _secrets_cache['client_secret']:
+        return _secrets_cache['client_id'], _secrets_cache['client_secret']
+
+    try:
+        key_vault_url = os.environ.get('KEY_VAULT_URL')
+        client_id_secret_name = os.environ.get('COGNITO_CLIENT_ID_SECRET_NAME', 'cognito-client-id')
+        client_secret_secret_name = os.environ.get('COGNITO_CLIENT_SECRET_SECRET_NAME', 'cognito-client-secret')
+
+        if not key_vault_url:
+            raise Exception('KEY_VAULT_URL environment variable is not configured')
+
+        credential = DefaultAzureCredential()
+        secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
+
+        client_id = secret_client.get_secret(client_id_secret_name).value
+        client_secret = secret_client.get_secret(client_secret_secret_name).value
+
+        _secrets_cache['client_id'] = client_id
+        _secrets_cache['client_secret'] = client_secret
+        return client_id, client_secret
     except Exception as e:
-        logging.error(f'Error retrieving credentials: {str(e)}')
+        logging.error(f'Error retrieving credentials from Key Vault: {str(e)}')
         raise
 
 def get_cognito_token(client_id, client_secret):

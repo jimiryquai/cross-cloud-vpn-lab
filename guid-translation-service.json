@@ -1,0 +1,463 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "guid-translation-service api",
+    "description": "guid translation service",
+    "version": "0.1.3"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8083",
+      "description": "Generated server url"
+    }
+  ],
+  "paths": {
+    "/guid-translation-service/v1/dwp-guid": {
+      "get": {
+        "tags": [
+          "Guid Translation Service"
+        ],
+        "summary": "Retrieve DWP GUID or Consumer GUID as requested",
+        "operationId": "retrieveDwpGuid",
+        "parameters": [
+          {
+            "name": "Identifier",
+            "in": "header",
+            "description": "Identifier to be exchanged, either a Consumer Guid or a DWP Guid. The format of which is ^[0-9a-f]{64}$.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          {
+            "name": "correlation-id",
+            "in": "header",
+            "description": "correlation-id: must match ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ .",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "JWT token which will be used to establish the consumer requesting the service. Currently this is managed using Cognito identities provided by the citizen information kubernetes platform. Please provide details of an identity already established during the on-boarding process or engage with the team to establish a new identity. An authorisation header must be provided if a consumer header is not used",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-forwarded-client-cert",
+            "in": "header",
+            "description": "x-forwarded-client-cert header value signifies the calling service. This header is automatically populated by the CI k8s platform",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "description": "Acceptable x-request-id format is ^[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}$ . This value should be populated by the originator of the activity as it will allow the various platform tracing tools to operate properly",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Consumer",
+            "in": "header",
+            "description": "The Consumer ID identifies the user if a JWT token is not required as the consumer is hosted on the citizen information kubernetes platform. This will be unique per consumer and will be allocated during the on-boarding process. A consumer header must be provided if an Authorization header is not present",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityResponseDTO"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request <p>the request was invalid there are several reasons why this could occur</p><table><tr><th>description</th><th>status</th><th>dto message</th> </tr><tr><td>The Identifier does not conform to basic regex structure of the identifier.</td><td>400 BAD_REQUEST</td><td>\"Input identifier not valid\"</td> </tr><tr><td>Unable to resolve the unwrapping of the dwp guid or consumer guid.</td><td>400 BAD_REQUEST</td><td>\"Unexpected encryption issue.\" or \"Unexpected encryption issue.\"</td> </tr><tr><td>An illegitimate exchange has been requested (It is unlikely an illegitimate request would be authorised).</td><td>400 BAD_REQUEST</td><td>\"A serious error has occurred\"</td> </tr><tr><td>The JWT Token is not correctly formed or recognised</td><td>400 BAD_REQUEST</td><td>\"JW Token was null\" or \"An error occurred when decoding JW Token\" or \"JWT token malformed not three different component\" or \"JWT tokens user is unknown\"</td> </tr><tr><td>Unable to resolve the consumer requesting the service</td><td>400 BAD_REQUEST</td><td>\"No X-forwarded Header value\" or \"Unknown Consumer\" or \"Unable to extract JWTToken or Customer ID header\" or \"Unknown Consumer Namespace\"</td> </tr></table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "<p>The consumer is not entitled to use the service requested</p><table><tr><th>description</th><th>status</th><th>dto message</th> </tr><tr><td>The consumer is not entitled to use the service requested</td><td>403 FORBIDDEN</td><td>\"User %s is not permitted to use service %s\" or \"User %s is not permitted to conduct a request for %s using %s\"</td> </tr></table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "<p>The consumer has presented an illogical consumer guid</p><table><tr><th>description</th><th>status</th><th>dto message</th> </tr><tr><td>The consumer guid is not owned by the consumer presenting it</td><td>409 CONFLICT</td><td>\"Input GUID not valid for this consumer\"</td> </tr></table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "<p>Unable to locate a matching identifier to that presented</p><table><tr><th>description</th><th>status</th><th>dto message</th> </tr><tr><td>The DWP guid supplied is not present in the database</td><td>422 UNPROCESSABLE_ENTITY </td><td>\"Supplied DWP_GUID not found\"</td> </tr><tr><td>The DWP guid supplied is present but there is no NINO - IDT can mint a DWP Guid to assign to a citizen where the citizen has no NINO or they are unable to determine the NINO - this functionality is currently not in use</td><td>422 UNPROCESSABLE_ENTITY </td><td>\"No NINO held for supplied GUID\"\n</td> </tr></table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "<p>The service has had an unexpected error</p><table><tr><th>description</th><th>status</th><th>dto message</th> </tr><tr><td>unexpected value presented</td><td>500 INTERNAL_SERVER_ERROR</td><td>\"Received Enum that wasn't managed by the repository\" or \"Received Enum that wasn't managed by the Extract Identifier Function\"</td> </tr><tr><td>Byte encoding error</td><td>500 INTERNAL_SERVER_ERROR</td><td>\"Error occurred when converting to bytes\"</td> </tr></table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/guid-translation-service/v1/consumer-guid": {
+      "get": {
+        "tags": [
+          "Guid Translation Service"
+        ],
+        "summary": "Retrieve DWP GUID or Consumer GUID as requested",
+        "operationId": "retrieveConsumerGuid",
+        "parameters": [
+          {
+            "name": "Identifier",
+            "in": "header",
+            "description": "Identifier to be exchanged, either a Consumer Guid or a DWP Guid. The format of which is ^[0-9a-f]{64}$.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          {
+            "name": "correlation-id",
+            "in": "header",
+            "description": "correlation-id: must match ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ .",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "JWT token which will be used to establish the consumer requesting the service. Currently this is managed using Cognito identities provided by the citizen information kubernetes platform. Please provide details of an identity already established during the on-boarding process or engage with the team to establish a new identity. An authorisation header must be provided if a consumer header is not used",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-forwarded-client-cert",
+            "in": "header",
+            "description": "x-forwarded-client-cert header value signifies the calling service. This header is automatically populated by the CI k8s platform",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "description": "Acceptable x-request-id format is ^[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}$ . This value should be populated by the originator of the activity as it will allow the various platform tracing tools to operate properly",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Consumer",
+            "in": "header",
+            "description": "The Consumer ID identifies the user if a JWT token is not required as the consumer is hosted on the citizen information kubernetes platform. This will be unique per consumer and will be allocated during the on-boarding process. A consumer header must be provided if an Authorization header is not present",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityResponseDTO"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request <p>the request was invalid there are several reasons why this could occur</p><table><tr><th>description</th><th>status</th><th>dto message</th> </tr><tr><td>The Identifier does not conform to basic regex structure of the identifier.</td><td>400 BAD_REQUEST</td><td>\"Input identifier not valid\"</td> </tr><tr><td>Unable to resolve the unwrapping of the dwp guid or consumer guid.</td><td>400 BAD_REQUEST</td><td>\"Unexpected encryption issue.\" or \"Unexpected encryption issue.\"</td> </tr><tr><td>An illegitimate exchange has been requested (It is unlikely an illegitimate request would be authorised).</td><td>400 BAD_REQUEST</td><td>\"A serious error has occurred\"</td> </tr><tr><td>The JWT Token is not correctly formed or recognised</td><td>400 BAD_REQUEST</td><td>\"JW Token was null\" or \"An error occurred when decoding JW Token\" or \"JWT token malformed not three different component\" or \"JWT tokens user is unknown\"</td> </tr><tr><td>Unable to resolve the consumer requesting the service</td><td>400 BAD_REQUEST</td><td>\"No X-forwarded Header value\" or \"Unknown Consumer\" or \"Unable to extract JWTToken or Customer ID header\" or \"Unknown Consumer Namespace\"</td> </tr></table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "<p>The consumer is not entitled to use the service requested</p><table><tr><th>description</th><th>status</th><th>dto message</th> </tr><tr><td>The consumer is not entitled to use the service requested</td><td>403 FORBIDDEN</td><td>\"User %s is not permitted to use service %s\" or \"User %s is not permitted to conduct a request for %s using %s\"</td> </tr></table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "<p>The consumer has presented an illogical consumer guid</p><table><tr><th>description</th><th>status</th><th>dto message</th> </tr><tr><td>The consumer guid is not owned by the consumer presenting it</td><td>409 CONFLICT</td><td>\"Input GUID not valid for this consumer\"</td> </tr></table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "<p>Unable to locate a matching identifier to that presented</p><table><tr><th>description</th><th>status</th><th>dto message</th> </tr><tr><td>The DWP guid supplied is not present in the database</td><td>422 UNPROCESSABLE_ENTITY </td><td>\"Supplied DWP_GUID not found\"</td> </tr><tr><td>The DWP guid supplied is present but there is no NINO - IDT can mint a DWP Guid to assign to a citizen where the citizen has no NINO or they are unable to determine the NINO - this functionality is currently not in use</td><td>422 UNPROCESSABLE_ENTITY </td><td>\"No NINO held for supplied GUID\"\n</td> </tr></table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "<p>The service has had an unexpected error</p><table><tr><th>description</th><th>status</th><th>dto message</th> </tr><tr><td>unexpected value presented</td><td>500 INTERNAL_SERVER_ERROR</td><td>\"Received Enum that wasn't managed by the repository\" or \"Received Enum that wasn't managed by the Extract Identifier Function\"</td> </tr><tr><td>Byte encoding error</td><td>500 INTERNAL_SERVER_ERROR</td><td>\"Error occurred when converting to bytes\"</td> </tr></table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/guid-translation-service/v0.1/{identifier-type-requested}/for/{identifier-type-sent}/{id}": {
+      "get": {
+        "tags": [
+          "Guid Translation Service"
+        ],
+        "summary": "Retrieve DWP GUID or Consumer GUID as requested",
+        "operationId": "retrieve",
+        "parameters": [
+          {
+            "name": "identifier-type-requested",
+            "in": "path",
+            "description": "The type of identifier requested.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "dwp-guid, consumer-guid, DWP-GUID, CONSUMER-GUID"
+              ]
+            }
+          },
+          {
+            "name": "identifier-type-sent",
+            "in": "path",
+            "description": "The type of identifier sent for exchange.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "dwp-guid, consumer-guid, DWP-GUID, CONSUMER-GUID"
+              ]
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Identifier to be exchanged, either a Consumer Guid or a DWP Guid. The format of which is ^[0-9a-f]{64}$.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "correlation-id",
+            "in": "header",
+            "description": "correlation-id: must match ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ .",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "JWT token which will be used to establish the consumer requesting the service. Currently this is managed using Cognito identities provided by the citizen information kubernetes platform. Please provide details of an identity already established during the on-boarding process or engage with the team to establish a new identity. An authorisation header must be provided if a consumer header is not used",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-forwarded-client-cert",
+            "in": "header",
+            "description": "x-forwarded-client-cert header value signifies the calling service. This header is automatically populated by the CI k8s platform",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "description": "Acceptable x-request-id format is ^[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}$ . This value should be populated by the originator of the activity as it will allow the various platform tracing tools to operate properly",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Consumer",
+            "in": "header",
+            "description": "The Consumer ID identifies the user if a JWT token is not required as the consumer is hosted on the citizen information kubernetes platform. This will be unique per consumer and will be allocated during the on-boarding process. A consumer header must be provided if an Authorization header is not present",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityResponseDTO"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request <p>the request was invalid there are several reasons why this could occur</p><table><tr><th>description</th><th>status</th><th>dto message</th> </tr><tr><td>The Identifier does not conform to basic regex structure of the identifier.</td><td>400 BAD_REQUEST</td><td>\"Input identifier not valid\"</td> </tr><tr><td>Unable to resolve the unwrapping of the dwp guid or consumer guid.</td><td>400 BAD_REQUEST</td><td>\"Unexpected encryption issue.\" or \"Unexpected encryption issue.\"</td> </tr><tr><td>An illegitimate exchange has been requested (It is unlikely an illegitimate request would be authorised).</td><td>400 BAD_REQUEST</td><td>\"A serious error has occurred\"</td> </tr><tr><td>The JWT Token is not correctly formed or recognised</td><td>400 BAD_REQUEST</td><td>\"JW Token was null\" or \"An error occurred when decoding JW Token\" or \"JWT token malformed not three different component\" or \"JWT tokens user is unknown\"</td> </tr><tr><td>Unable to resolve the consumer requesting the service</td><td>400 BAD_REQUEST</td><td>\"No X-forwarded Header value\" or \"Unknown Consumer\" or \"Unable to extract JWTToken or Customer ID header\" or \"Unknown Consumer Namespace\"</td> </tr></table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "<p>The consumer is not entitled to use the service requested</p><table><tr><th>description</th><th>status</th><th>dto message</th> </tr><tr><td>The consumer is not entitled to use the service requested</td><td>403 FORBIDDEN</td><td>\"User %s is not permitted to use service %s\" or \"User %s is not permitted to conduct a request for %s using %s\"</td> </tr></table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "<p>The consumer has presented an illogical consumer guid</p><table><tr><th>description</th><th>status</th><th>dto message</th> </tr><tr><td>The consumer guid is not owned by the consumer presenting it</td><td>409 CONFLICT</td><td>\"Input GUID not valid for this consumer\"</td> </tr></table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "<p>Unable to locate a matching identifier to that presented</p><table><tr><th>description</th><th>status</th><th>dto message</th> </tr><tr><td>The DWP guid supplied is not present in the database</td><td>422 UNPROCESSABLE_ENTITY </td><td>\"Supplied DWP_GUID not found\"</td> </tr><tr><td>The DWP guid supplied is present but there is no NINO - IDT can mint a DWP Guid to assign to a citizen where the citizen has no NINO or they are unable to determine the NINO - this functionality is currently not in use</td><td>422 UNPROCESSABLE_ENTITY </td><td>\"No NINO held for supplied GUID\"\n</td> </tr></table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "<p>The service has had an unexpected error</p><table><tr><th>description</th><th>status</th><th>dto message</th> </tr><tr><td>unexpected value presented</td><td>500 INTERNAL_SERVER_ERROR</td><td>\"Received Enum that wasn't managed by the repository\" or \"Received Enum that wasn't managed by the Extract Identifier Function\"</td> </tr><tr><td>Byte encoding error</td><td>500 INTERNAL_SERVER_ERROR</td><td>\"Error occurred when converting to bytes\"</td> </tr></table>",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": true
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "IdentityResponseDTO": {
+        "properties": {
+          "Type": {
+            "type": "string",
+            "description": "Identifier that is returned as per consumer's request (possible identifiers returned depending on Service)",
+            "enum": [
+              "DWP_GUID",
+              "NINO",
+              "CONSUMER_GUID",
+              "IDENTITY_GUID"
+            ]
+          },
+          "Returned identifier of the type specified in the type field": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "Returned identifier of the type specified in the type field",
+          "Type"
+        ]
+      },
+      "error": {
+        "properties": {
+          "HTTP status": {
+            "type": "string"
+          },
+          "Error messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -34,13 +34,7 @@ pip install -r requirements-dev.txt
 ### Set Environment Variables
 
 ```bash
-# AWS Credentials
-export AWS_ACCESS_KEY_ID="your-access-key"
-export AWS_SECRET_ACCESS_KEY="your-secret-key"
 
-# AWS Configuration
-export AWS_REGION="eu-west-2"
-export AWS_SECRET_NAME="consumer/cognito/vpn-lab/credentials"
 
 # Cognito Configuration
 export COGNITO_DOMAIN="vpn-lab-1762372102.auth.eu-west-2.amazoncognito.com"
@@ -52,10 +46,6 @@ export GUID_API_URL="https://z3euh2qc03.execute-api.eu-west-2.amazonaws.com/test
 **Or use a `.env` file** (not committed):
 ```bash
 # .env file (add to .gitignore)
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_REGION=eu-west-2
-AWS_SECRET_NAME=consumer/cognito/vpn-lab/credentials
 COGNITO_DOMAIN=vpn-lab-1762372102.auth.eu-west-2.amazoncognito.com
 GUID_API_URL=https://z3euh2qc03.execute-api.eu-west-2.amazonaws.com/test
 ```
@@ -165,7 +155,6 @@ test_cache_with_different_expiration_times PASSED
 ### Missing Environment Variables
 
 ```
-SKIPPED - Missing required environment variables: AWS_ACCESS_KEY_ID, ...
 ```
 
 **Fix**: Set all required environment variables (see Setup section)

@@ -1,0 +1,14 @@
+flowchart TB
+    H["Call ProcessCSV Azure Function<br/>via Custom Connector"]
+    I["Function returns 202 Accepted + jobId"]
+    J["Flow polls status endpoint<br/>using Do Until loop"]
+    K["Azure Function processes internally:<br/>Parse CSV, Extract NINOs,<br/>Chunk into 5k batches,<br/>Bulk translate via AWS API,<br/>Replace NINOs with GUIDs,<br/>Rebuild CSV"]
+    L{Success?}
+    M["Return error to Flow"]
+    N["Return modified CSV with GUIDs"]
+    H --> I
+    I --> J
+    J --> K
+    K --> L
+    L -->|No| M
+    L -->|Yes| N
