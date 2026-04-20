@@ -1,6 +1,9 @@
 # Azure Functions for Python
 azure-functions
 
+# Azure Key Vault + Managed Identity
+azure-identity
+azure-keyvault-secrets
 
 # HTTP requests library
 requests>=2.31.0

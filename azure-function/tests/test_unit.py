@@ -1,19 +1,20 @@
 """
 Unit tests for pure logic (no external dependencies).
 
-These tests focus on token caching logic that doesn't require AWS calls.
-No mocks needed - just testing datetime calculations.
+Tests token caching and secrets caching logic — no Azure Key Vault
+or AWS calls. Just datetime calculations and dict operations.
 """
 
 import pytest
 import os
 import sys
 from datetime import datetime, timedelta
+from unittest.mock import patch, MagicMock
 
 # Add parent directory to path to import GetGUID module
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from GetGUID import get_cached_token, cache_token, _token_cache
+from GetGUID import get_cached_token, cache_token, _token_cache, _secrets_cache, get_cognito_credentials
 
 
 class TestTokenCachingLogic:
@@ -141,6 +142,81 @@ class TestTokenCachingLogic:
 
             assert time_diff < 5, f"Expiration calculation should be accurate for {expires_in}s"
             print(f"  ✓ Correct expiration for {expires_in}s ({expires_in//60} min)")
+
+
+class TestSecretsCachingLogic:
+    """Test Key Vault secrets caching (mocked — no real Key Vault calls)"""
+
+    @pytest.fixture(autouse=True)
+    def clear_secrets_cache(self):
+        """Clear secrets cache before and after each test"""
+        _secrets_cache['client_id'] = None
+        _secrets_cache['client_secret'] = None
+        yield
+        _secrets_cache['client_id'] = None
+        _secrets_cache['client_secret'] = None
+
+    def test_secrets_cache_returns_cached_values(self):
+        """Pre-populated secrets cache should return without calling Key Vault"""
+        print("\n→ Testing secrets cache returns cached values...")
+
+        _secrets_cache['client_id'] = 'cached-id'
+        _secrets_cache['client_secret'] = 'cached-secret'
+
+        client_id, client_secret = get_cognito_credentials()
+
+        assert client_id == 'cached-id'
+        assert client_secret == 'cached-secret'
+        print("  ✓ Cached credentials returned without Key Vault call")
+
+    def test_get_cognito_credentials_raises_without_key_vault_url(self):
+        """Missing KEY_VAULT_URL should raise an exception"""
+        print("\n→ Testing missing KEY_VAULT_URL raises...")
+
+        # Ensure cache is empty so it actually tries Key Vault
+        _secrets_cache['client_id'] = None
+        _secrets_cache['client_secret'] = None
+
+        with patch.dict(os.environ, {}, clear=True):
+            with pytest.raises(Exception, match="KEY_VAULT_URL"):
+                get_cognito_credentials()
+
+        print("  ✓ Correctly raises when KEY_VAULT_URL is missing")
+
+    @patch('shared.auth.SecretClient')
+    @patch('shared.auth.DefaultAzureCredential')
+    def test_get_cognito_credentials_fetches_and_caches(self, mock_cred, mock_client_cls):
+        """First call fetches from Key Vault, populates cache"""
+        print("\n→ Testing Key Vault fetch and cache population...")
+
+        # Set up mocks
+        mock_secret_id = MagicMock()
+        mock_secret_id.value = 'test-client-id'
+        mock_secret_secret = MagicMock()
+        mock_secret_secret.value = 'test-client-secret'
+
+        mock_client = MagicMock()
+        mock_client.get_secret.side_effect = lambda name: {
+            'cognito-client-id': mock_secret_id,
+            'cognito-client-secret': mock_secret_secret,
+        }[name]
+        mock_client_cls.return_value = mock_client
+
+        with patch.dict(os.environ, {'KEY_VAULT_URL': 'https://test-vault.vault.azure.net'}):
+            client_id, client_secret = get_cognito_credentials()
+
+        assert client_id == 'test-client-id'
+        assert client_secret == 'test-client-secret'
+        assert _secrets_cache['client_id'] == 'test-client-id'
+        assert _secrets_cache['client_secret'] == 'test-client-secret'
+
+        # Second call should use cache, not call Key Vault again
+        mock_client.get_secret.reset_mock()
+        client_id_2, client_secret_2 = get_cognito_credentials()
+        mock_client.get_secret.assert_not_called()
+        assert client_id_2 == 'test-client-id'
+
+        print("  ✓ Fetched from Key Vault, populated cache, second call used cache")
 
 
 if __name__ == "__main__":

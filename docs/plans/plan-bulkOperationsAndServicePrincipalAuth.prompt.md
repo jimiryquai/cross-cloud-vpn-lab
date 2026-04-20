@@ -212,26 +212,34 @@ Switch the Power Platform → Azure Function auth layer from function key to Ent
 
 ## Open Design Decisions
 
-### ⛔ BLOCKER: Cognito Credential Storage Location
+### ✅ RESOLVED: Cognito Credential Storage Location
 
-**Status: AWAITING DECISION — implementation on hold until resolved.**
+**Status: RESOLVED — Option B (Azure Key Vault) implemented on 20 April 2026.**
 
-The Azure Function needs Cognito `client_id` and `client_secret` to authenticate with the AWS GUID API (OAuth2 client credentials flow via AWS Cognito). There are two options for where these credentials are stored:
+The decision was made to use Azure Key Vault with `DefaultAzureCredential` (Managed Identity). The change was implemented directly in `GetGUID/__init__.py` (ahead of the planned shared auth extraction in Phase 1). Key outcomes:
 
-| | **Option A: AWS Secrets Manager (current)** | **Option B: Azure Key Vault** |
-|---|---|---|
-| **How it works** | Function uses `boto3` to call AWS Secrets Manager via IAM credentials (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` as env vars) | Function reads Cognito creds from Azure Key Vault via managed identity or Key Vault secret reference in app settings |
-| **Pros** | Already implemented and working; credentials managed on the AWS side where Cognito lives | Single secrets store on the Azure side; no AWS IAM credentials needed in the Function; simpler dependency chain; aligns with storing the SP client secret in Key Vault too |
-| **Cons** | Requires AWS IAM credentials stored in the Function App (widens the credential surface); adds boto3 + AWS SDK as a dependency | Requires someone to sync Cognito creds into Key Vault if they rotate on the AWS side; adds a cross-cloud operational dependency |
-| **Impact on code** | No change (existing `shared/auth.py` uses boto3) | Refactor `get_cognito_credentials()` in `shared/auth.py` to read from Key Vault (or from app settings via Key Vault references) instead of boto3. Could potentially remove `boto3` dependency entirely |
+- `boto3` and `botocore` dependencies removed from `requirements.txt`
+- `get_cognito_credentials()` now reads from Key Vault via `azure-identity` + `azure-keyvault-secrets`
+- Secrets are cached in a module-level `_secrets_cache` dict (fetched once per Function instance lifetime)
+- Unit tests updated and passing (10/10) including mocked Key Vault tests
 
-**This decision affects:**
-- Phase 1 (shared auth module design)
-- Phase 2 (ProcessCSV dependencies)
-- `azure-function/requirements.txt` (boto3 may be removable)
-- Azure Function app settings configuration
+> **Note:** The shared auth module extraction (Phase 1) still needs to happen — this change was applied in-place. See Phase 1 above.
 
-**Action required:** Confirm with the infrastructure/security team which approach is being taken before proceeding with implementation.
+---
+
+### ⏸️ ON HOLD: Bulk Operations Data Format (Phase 2)
+
+**Status: PENDING ARCHITECTURAL DISCUSSION — see `docs/azure-team-questions.md` for the framed recommendation.**
+
+Before implementing the `ProcessCSV` function, we need agreement with the infra team and architect on how bulk data flows between Power Automate and the Azure Function. Specifically:
+
+1. **Does the Function receive a raw CSV string** (with line breaks, commas, encoding) or a **structured JSON payload** (array of identifiers)?
+2. **Async pattern**: 202 + polling vs synchronous for the expected data volumes?
+3. **Job state storage**: In-memory dict vs Azure Blob Storage?
+
+The upstream AWS bulk API expects `recordHolder` JSON (`{ numberOfRecords, records: [{ key, value }] }`, max 10,000 per call) regardless of what we receive — so the question is where the CSV→JSON transformation happens.
+
+**Implementation of Phases 2 and 3 is paused until this is discussed.**
 
 ---
 

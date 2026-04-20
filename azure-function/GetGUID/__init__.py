@@ -1,73 +1,18 @@
 import logging
 import json
 import os
-from datetime import datetime, timedelta
 import azure.functions as func
-from azure.identity import DefaultAzureCredential
-from azure.keyvault.secrets import SecretClient
 import requests
-from requests.auth import HTTPBasicAuth
 
+from shared.auth import (
+    get_cognito_credentials,
+    get_cognito_token,
+    get_cached_token,
+    cache_token,
+    _token_cache,
+    _secrets_cache
+)
 
-# --- Token & Secret Caching Logic ---
-_token_cache = {'access_token': None, 'expires_at': None}
-_secrets_cache = {'client_id': None, 'client_secret': None}
-
-def get_cached_token():
-    if _token_cache['access_token'] and _token_cache['expires_at']:
-        if datetime.now() < _token_cache['expires_at'] - timedelta(seconds=60):
-            return _token_cache['access_token']
-    return None
-
-def cache_token(access_token, expires_in):
-    _token_cache['access_token'] = access_token
-    _token_cache['expires_at'] = datetime.now() + timedelta(seconds=expires_in)
-
-
-def get_cognito_credentials():
-    """Retrieve Cognito credentials from Azure Key Vault (cached)"""
-    if _secrets_cache['client_id'] and _secrets_cache['client_secret']:
-        return _secrets_cache['client_id'], _secrets_cache['client_secret']
-
-    try:
-        key_vault_url = os.environ.get('KEY_VAULT_URL')
-        client_id_secret_name = os.environ.get('COGNITO_CLIENT_ID_SECRET_NAME', 'cognito-client-id')
-        client_secret_secret_name = os.environ.get('COGNITO_CLIENT_SECRET_SECRET_NAME', 'cognito-client-secret')
-
-        if not key_vault_url:
-            raise Exception('KEY_VAULT_URL environment variable is not configured')
-
-        credential = DefaultAzureCredential()
-        secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
-
-        client_id = secret_client.get_secret(client_id_secret_name).value
-        client_secret = secret_client.get_secret(client_secret_secret_name).value
-
-        _secrets_cache['client_id'] = client_id
-        _secrets_cache['client_secret'] = client_secret
-        return client_id, client_secret
-    except Exception as e:
-        logging.error(f'Error retrieving credentials from Key Vault: {str(e)}')
-        raise
-
-def get_cognito_token(client_id, client_secret):
-    """Get OAuth token from Cognito"""
-    cached_token = get_cached_token()
-    if cached_token: return cached_token
-
-    cognito_domain = os.environ.get('COGNITO_DOMAIN')
-    token_url = f'https://{cognito_domain}/oauth2/token'
-    
-    response = requests.post(
-        token_url,
-        auth=HTTPBasicAuth(client_id, client_secret),
-        data={'grant_type': 'client_credentials'},
-        headers={'Content-Type': 'application/x-www-form-urlencoded'},
-        timeout=10
-    )
-    token_data = response.json()
-    cache_token(token_data['access_token'], token_data.get('expires_in', 3600))
-    return token_data['access_token']
 
 def call_guid_api(access_token, identifier, correlation_id):
     """ Calls upstream GUID API forwarding headers as per schema."""
@@ -145,4 +90,3 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json",
             status_code=500
         )
-    
