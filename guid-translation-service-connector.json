@@ -2,8 +2,8 @@
   "swagger": "2.0",
   "info": {
     "title": "GUID Service Proxy",
-    "description": "Direct-to-Function Proxy for GUID Translation",
-    "version": "1.0.0"
+    "description": "Direct-to-Function Proxy for GUID Translation (single + bulk)",
+    "version": "1.1.0"
   },
   "host": "vpn-lab-aws-bridge-5295.azurewebsites.net",
   "basePath": "/api",
@@ -55,6 +55,104 @@
           "500": { "description": "Internal Proxy Error" }
         }
       }
+    },
+    "/dwp-guid-bulk-service/v1/{bulk-activity}": {
+      "post": {
+        "summary": "Bulk Retrieve DWP GUID or NINO",
+        "description": "Bulk translate identifiers. Accepts a JSON payload of up to 10,000 keyed identifiers and returns the translated equivalents with matching keys.",
+        "operationId": "BulkOperate",
+        "parameters": [
+          {
+            "name": "bulk-activity",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Type of bulk activity requested.",
+            "enum": [
+              "TRANSFORM_DWP_GUID_TO_NINO",
+              "TRANSFORM_NINO_TO_DWP_GUID"
+            ]
+          },
+          {
+            "name": "correlation-id",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "UUID for request tracking. Must match ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$."
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "description": "JSON object containing the records to translate.",
+            "schema": {
+              "$ref": "#/definitions/RecordHolder"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response — returns translated records with matching keys.",
+            "schema": {
+              "$ref": "#/definitions/RecordHolder"
+            }
+          },
+          "400": {
+            "description": "Bad Request — invalid identifiers, corrupt JSON, record count mismatch, or error threshold exceeded.",
+            "schema": {
+              "$ref": "#/definitions/BulkError"
+            }
+          },
+          "403": {
+            "description": "Forbidden — consumer not entitled to use this service.",
+            "schema": {
+              "$ref": "#/definitions/BulkError"
+            }
+          },
+          "404": {
+            "description": "Not Found — unknown URL.",
+            "schema": {
+              "$ref": "#/definitions/BulkError"
+            }
+          },
+          "429": {
+            "description": "Too Many Requests — daily request threshold reached.",
+            "schema": {
+              "$ref": "#/definitions/BulkError"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error.",
+            "schema": {
+              "$ref": "#/definitions/BulkError"
+            }
+          }
+        }
+      }
+    },
+    "/dwp-guid-bulk-service/v1/remaining-daily-allowance": {
+      "get": {
+        "summary": "Get Remaining Daily Allowance",
+        "description": "Returns the remaining number of bulk requests allowed for the current day.",
+        "operationId": "GetDailyAllowance",
+        "parameters": [
+          {
+            "name": "correlation-id",
+            "in": "header",
+            "required": true,
+            "type": "string",
+            "description": "UUID for request tracking. Must match ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK — returns the remaining daily allowance as a string.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -76,6 +174,77 @@
         },
         "Returned identifier of the type specified in the type field": {
           "type": "string"
+        }
+      }
+    },
+    "RecordHolder": {
+      "type": "object",
+      "description": "Container for bulk request/response records.",
+      "required": [
+        "numberOfRecords",
+        "records"
+      ],
+      "properties": {
+        "numberOfRecords": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Number of records in this request. Minimum 1, maximum 10,000.",
+          "minimum": 1,
+          "maximum": 10000,
+          "example": 2
+        },
+        "requestRef": {
+          "type": "string",
+          "description": "Optional reference for consumer use. Same value is echoed in the response. Max 64 alphanumeric characters.",
+          "pattern": "^[a-zA-Z0-9]{0,64}$",
+          "example": "batch-001"
+        },
+        "records": {
+          "type": "array",
+          "description": "Array of keyed identifiers. Keys must be unique — the response will return translated identifiers under the same keys.",
+          "minItems": 1,
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/definitions/IdentifierIndexMap"
+          }
+        }
+      }
+    },
+    "IdentifierIndexMap": {
+      "type": "object",
+      "description": "A single keyed identifier for bulk translation.",
+      "required": [
+        "key",
+        "value"
+      ],
+      "properties": {
+        "key": {
+          "type": "integer",
+          "format": "int64",
+          "description": "Unique key — maps request identifier to response identifier.",
+          "example": 1
+        },
+        "value": {
+          "type": "string",
+          "description": "The identifier (NINO or DWP GUID).",
+          "example": "QQ123456A"
+        }
+      }
+    },
+    "BulkError": {
+      "type": "object",
+      "description": "Error response from the bulk service.",
+      "properties": {
+        "status": {
+          "type": "string",
+          "description": "HTTP status description.",
+          "example": "400 BAD_REQUEST"
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     }
