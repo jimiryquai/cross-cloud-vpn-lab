@@ -5,8 +5,7 @@ Handles:
 - Cognito credential retrieval from Azure Key Vault (cached)
 - OAuth token acquisition from AWS Cognito (cached)
 
-Used by GetGUID, and will be used by ProcessCSV and DailyAllowance
-once bulk operations are implemented.
+Used by the single GUID lookup and JSON bulk processing endpoints.
 """
 
 import logging

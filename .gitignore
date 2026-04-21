@@ -37,3 +37,10 @@ Thumbs.db
 
 # Logs
 *.log
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.bandit/
+.cache/

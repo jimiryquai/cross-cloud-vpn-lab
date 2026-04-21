@@ -1,0 +1,14 @@
+[tool.ruff]
+line-length = 120
+select = ["E", "F", "B", "I", "S"]
+ignore = []
+
+[tool.ruff.lint]
+# Enable Ruff's security rules (S) and bugbear (B)
+select = ["E", "F", "B", "S"]
+
+[tool.ruff.format]
+# Use Black-compatible formatting
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
