@@ -25,7 +25,7 @@ Focus on integration tests with real AWS services. Minimal unit tests only for p
 
 ### 1. Integration Tests (Primary - 90% of testing effort)
 
-**File**: `azure-function/tests/test_integration.py`
+**File**: `src/tests/test_integration.py`
 
 ```python
 import pytest
@@ -155,7 +155,7 @@ class TestRealAWSIntegration:
 
 ### 2. Unit Tests (Minimal - 10% of testing effort)
 
-**File**: `azure-function/tests/test_unit.py`
+**File**: `src/tests/test_unit.py`
 
 ```python
 import pytest
@@ -305,7 +305,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd azure-function
+          cd src
           pip install -r requirements.txt
           pip install pytest pytest-cov
 

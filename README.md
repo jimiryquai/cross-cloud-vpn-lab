@@ -4,7 +4,7 @@ This repository contains an Azure Function and supporting assets for secure iden
 
 ## Project Structure
 
-- `azure-function/` — Azure Function app, shared logic, and tests
+- `src/` — Azure Function app, shared logic, and tests
 - `docs/` — Architecture, NFRs, test strategy, and meeting notes
 - `power-platform/` — Power Platform connectors and solution files
 - `Workflows/` — Workflow definitions
@@ -26,7 +26,7 @@ This repository contains an Azure Function and supporting assets for secure iden
  cd cross-cloud-vpn-lab
 
 # Set up Python environment
-cd azure-function
+cd src
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
@@ -48,7 +48,7 @@ GUID_API_URL=...
 
 ### 3. Run Tests
 ```bash
-cd azure-function
+cd src
 python -m unittest discover -s tests -v
 ```
 
@@ -59,7 +59,7 @@ python -m unittest discover -s tests -v
 
 ## Documentation
 - See `docs/` for architecture, NFRs, and test strategy
-- See `azure-function/tests/README.md` for detailed test setup and troubleshooting
+- See `src/tests/README.md` for detailed test setup and troubleshooting
 
 ## Contributing
 - Ensure all code passes lint, security, and tests before submitting a merge request

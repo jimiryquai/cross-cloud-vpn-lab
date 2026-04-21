@@ -5,31 +5,31 @@ stages:
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-  PYTHONPATH: "azure-function"
+  PYTHONPATH: "src"
 
 before_script:
   - python -m pip install --upgrade pip
-  - pip install -r azure-function/requirements-dev.txt
+  - pip install -r src/requirements-dev.txt
   - pip install ruff bandit
 
 ruff_lint:
   stage: lint
   script:
-    - ruff check azure-function
+    - ruff check src
 
 bandit_scan:
   stage: security
   script:
-    - bandit -r azure-function
+    - bandit -r src
 
 unit_and_integration_tests:
   stage: test
   script:
-    - cd azure-function
+    - cd src
     - python -m unittest discover -s tests -v
   artifacts:
     when: always
     paths:
-      - azure-function/.coverage
+      - src/.coverage
     reports:
       junit: junit-report.xml
