@@ -15,6 +15,7 @@ Prerequisites:
 
 import os
 import unittest
+import requests
 from shared.auth import (
     get_cognito_credentials,
     get_cognito_token,
@@ -101,6 +102,42 @@ class TestRealIntegration(unittest.TestCase):
         person_data = call_guid_api(access_token, INVALID_GUID, TEST_CORRELATION)
         self.assertIsNotNone(person_data, "Should get response from mock API")
         self.assertIn('nino', person_data, "Response should contain 'nino'")
+
+    def test_bulk_endpoint_real(self):
+        """Integration test for the bulk endpoint."""
+        required = ["KEY_VAULT_URL", "COGNITO_DOMAIN", "GUID_API_URL", "FUNCTION_BASE_URL"]
+        missing = [var for var in required if not os.environ.get(var)]
+        if missing:
+            self.skipTest(f"Missing required environment variables: {', '.join(missing)}")
+        client_id, secret = get_cognito_credentials()
+        access_token = get_cognito_token(client_id, secret)
+        correlation_id = TEST_CORRELATION
+        bulk_activity = "translate-nino-bulk"
+        url = f"{os.environ['FUNCTION_BASE_URL']}/dwp-guid-bulk-service/v1/{bulk_activity}"
+        payload = {"numberOfRecords": 2, "records": ["NINO1", "NINO2"]}
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "correlation-id": correlation_id,
+        }
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
+        self.assertIn(response.status_code, [200, 400], "Should return 200 OK or 400 BAD_REQUEST for test payload")
+
+    def test_daily_allowance_endpoint_real(self):
+        """Integration test for the daily allowance endpoint."""
+        required = ["KEY_VAULT_URL", "COGNITO_DOMAIN", "GUID_API_URL", "FUNCTION_BASE_URL"]
+        missing = [var for var in required if not os.environ.get(var)]
+        if missing:
+            self.skipTest(f"Missing required environment variables: {', '.join(missing)}")
+        client_id, secret = get_cognito_credentials()
+        access_token = get_cognito_token(client_id, secret)
+        correlation_id = TEST_CORRELATION
+        url = f"{os.environ['FUNCTION_BASE_URL']}/dwp-guid-bulk-service/v1/remaining-daily-allowance"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "correlation-id": correlation_id,
+        }
+        response = requests.get(url, headers=headers, timeout=10)
+        self.assertEqual(response.status_code, 200, "Should return 200 OK for daily allowance endpoint")
 
     @unittest.skip("Requires 60+ minute wait or cache manipulation - test manually")
     def test_expired_token_gets_refreshed(self):
