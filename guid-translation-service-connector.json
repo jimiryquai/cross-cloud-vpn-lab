@@ -43,6 +43,14 @@
             "type": "string",
             "description": "Standard UUID for request tracking."
           }
+          ,{
+            "name": "project",
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "enum": ["FQM", "1ACS", "HousingBenefit", "MATB1"],
+            "description": "Project/team identifier. Must be one of: FQM, 1ACS, HousingBenefit, MATB1."
+          }
         ],
         "responses": {
           "200": {
@@ -88,6 +96,14 @@
             "schema": {
               "$ref": "#/definitions/RecordHolder"
             }
+          }
+          ,{
+            "name": "project",
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "enum": ["FQM", "1ACS", "HousingBenefit", "MATB1"],
+            "description": "Project/team identifier. Must be one of: FQM, 1ACS, HousingBenefit, MATB1."
           }
         ],
         "responses": {
@@ -142,6 +158,14 @@
             "required": true,
             "type": "string",
             "description": "UUID for request tracking. Must match ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$."
+          }
+          ,{
+            "name": "project",
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "enum": ["FQM", "1ACS", "HousingBenefit", "MATB1"],
+            "description": "Project/team identifier. Must be one of: FQM, 1ACS, HousingBenefit, MATB1."
           }
         ],
         "responses": {

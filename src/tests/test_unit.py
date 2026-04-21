@@ -143,5 +143,51 @@ class TestSecretsCachingLogic(unittest.TestCase):
         self.assertEqual(client_id_2, TEST_CLIENT_ID_2)
 
 
+class TestProjectArnFetching(unittest.TestCase):
+    """Test get_project_arn logic (mocked Key Vault)"""
+
+    @patch('shared.auth.SecretClient')
+    @patch('shared.auth.DefaultAzureCredential')
+    def test_fetches_correct_arn_for_allowed_projects(self, mock_cred, mock_client_cls):
+        allowed_projects = ["FQM", "1ACS", "HousingBenefit", "MATB1"]
+        for project in allowed_projects:
+            mock_secret = MagicMock()
+            mock_secret.value = f"arn:aws:acm:region:account:certificate/{project.lower()}"
+            mock_client = MagicMock()
+            mock_client.get_secret.return_value = mock_secret
+            mock_client_cls.return_value = mock_client
+            with patch.dict(os.environ, {'KEY_VAULT_URL': 'https://test-vault.vault.azure.net'}):
+                arn = __import__('shared.auth', fromlist=['get_project_arn']).get_project_arn(project)
+            expected_secret_name = f"{project.lower()}-acm-arn"
+            mock_client.get_secret.assert_called_with(expected_secret_name)
+            self.assertTrue(arn.startswith("arn:aws:acm:"))
+
+    def test_invalid_project_raises(self):
+        with self.assertRaises(ValueError) as cm:
+            __import__('shared.auth', fromlist=['get_project_arn']).get_project_arn("INVALID")
+        self.assertIn("Invalid project", str(cm.exception))
+
+    @patch('shared.auth.SecretClient')
+    @patch('shared.auth.DefaultAzureCredential')
+    def test_missing_key_vault_url_raises(self, mock_cred, mock_client_cls):
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(Exception) as cm:
+                __import__('shared.auth', fromlist=['get_project_arn']).get_project_arn("FQM")
+            self.assertIn("KEY_VAULT_URL", str(cm.exception))
+
+    @patch('shared.auth.SecretClient')
+    @patch('shared.auth.DefaultAzureCredential')
+    def test_empty_secret_raises(self, mock_cred, mock_client_cls):
+        mock_secret = MagicMock()
+        mock_secret.value = None
+        mock_client = MagicMock()
+        mock_client.get_secret.return_value = mock_secret
+        mock_client_cls.return_value = mock_client
+        with patch.dict(os.environ, {'KEY_VAULT_URL': 'https://test-vault.vault.azure.net'}):
+            with self.assertRaises(Exception) as cm:
+                __import__('shared.auth', fromlist=['get_project_arn']).get_project_arn("FQM")
+            self.assertIn("is empty in Key Vault", str(cm.exception))
+
+
 if __name__ == "__main__":
     unittest.main()

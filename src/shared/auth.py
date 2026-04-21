@@ -1,3 +1,30 @@
+def get_project_arn(project):
+    """
+    Fetch the ACM Certificate ARN for the given project from Azure Key Vault.
+    Allowed projects: FQM, 1ACS, HousingBenefit, MATB1
+    """
+    allowed_projects = {"FQM", "1ACS", "HousingBenefit", "MATB1"}
+    if project not in allowed_projects:
+        raise ValueError(f"Invalid project: {project}. Must be one of: {', '.join(allowed_projects)}")
+
+    # Construct secret name (e.g., fqm-acm-arn)
+    secret_name = f"{project.lower()}-acm-arn"
+
+    key_vault_url = os.environ.get('KEY_VAULT_URL')
+    if not key_vault_url:
+        raise Exception('KEY_VAULT_URL environment variable is not configured')
+
+    credential = DefaultAzureCredential()
+    secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
+
+    try:
+        arn = secret_client.get_secret(secret_name).value
+        if not arn:
+            raise Exception(f"Secret {secret_name} is empty in Key Vault")
+        return arn
+    except Exception as e:
+        logging.error(f"Error retrieving ARN for {project} from Key Vault: {str(e)}")
+        raise
 """
 Shared authentication module for Azure Function endpoints.
 

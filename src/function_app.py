@@ -46,6 +46,7 @@ def get_single_guid(req: func.HttpRequest) -> func.HttpResponse:
     logging.info("Processing single GUID lookup.")
     identifier = req.headers.get("Identifier")
     correlation_id = req.headers.get("correlation-id", "not-provided")
+    project = req.params.get("project")
 
     if not identifier:
         return func.HttpResponse(
@@ -53,11 +54,19 @@ def get_single_guid(req: func.HttpRequest) -> func.HttpResponse:
             status_code=400,
             mimetype="application/json",
         )
+    if not project:
+        return func.HttpResponse(
+            json.dumps({"error": "Missing required query parameter: project"}),
+            status_code=400,
+            mimetype="application/json",
+        )
 
     try:
+        from shared.auth import get_project_arn
+        arn = get_project_arn(project)
+        # (Placeholder) Use arn as needed for downstream logic
         client_id, client_secret = get_cognito_credentials()
         access_token = get_cognito_token(client_id, client_secret)
-
         person_data = call_guid_api(access_token, identifier, correlation_id)
 
         return func.HttpResponse(
@@ -83,11 +92,20 @@ def get_single_guid(req: func.HttpRequest) -> func.HttpResponse:
 # 2. Bulk Processing (POST)
 @app.route(route="dwp-guid-bulk-service/v1/{bulk_activity}", methods=["POST"])
 def process_bulk_guids(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info("Processing bulk GUID translation.")
-    bulk_activity = req.route_params.get("bulk_activity")
-    correlation_id = req.headers.get("correlation-id", "not-provided")
-
+    project = req.params.get("project")
+    if not project:
+        return func.HttpResponse(
+            json.dumps({"error": "Missing required query parameter: project"}),
+            status_code=400,
+            mimetype="application/json",
+        )
+    from shared.auth import get_project_arn
     try:
+        arn = get_project_arn(project)
+        logging.info("Processing bulk GUID translation.")
+        bulk_activity = req.route_params.get("bulk_activity")
+        correlation_id = req.headers.get("correlation-id", "not-provided")
+
         req_body = req.get_json()
         if req_body.get("numberOfRecords", 0) > 5000:
             return func.HttpResponse(
@@ -147,10 +165,19 @@ def process_bulk_guids(req: func.HttpRequest) -> func.HttpResponse:
 # 3. Daily Allowance (GET)
 @app.route(route="dwp-guid-bulk-service/v1/remaining-daily-allowance", methods=["GET"])
 def get_daily_allowance(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info("Processing daily allowance check via upstream proxy.")
-    correlation_id = req.headers.get("correlation-id", "not-provided")
-
+    project = req.params.get("project")
+    if not project:
+        return func.HttpResponse(
+            json.dumps({"error": "Missing required query parameter: project"}),
+            status_code=400,
+            mimetype="application/json",
+        )
+    from shared.auth import get_project_arn
     try:
+        arn = get_project_arn(project)
+        logging.info("Processing daily allowance check via upstream proxy.")
+        correlation_id = req.headers.get("correlation-id", "not-provided")
+
         # Auth & Tokens
         client_id, client_secret = get_cognito_credentials()
         access_token = get_cognito_token(client_id, client_secret)
