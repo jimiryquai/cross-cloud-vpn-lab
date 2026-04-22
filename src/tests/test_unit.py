@@ -10,10 +10,10 @@ from datetime import datetime, timedelta
 import unittest
 
 from shared.auth.token import get_cached_token, cache_token, _token_cache
-from shared.auth.arn import get_project_arn, _arn_cache
 
 # Secret caching logic
 from shared.auth.secret import get_cognito_credentials, _secrets_cache
+import os
 import logging
 import types
 
@@ -119,14 +119,20 @@ class TestSecretCachingLogic(unittest.TestCase):
         class DummyClient:
             def get_secret(self, name):
                 return DummySecret(f"{name}_value")
-        _secrets_cache['client_id'] = None
-        _secrets_cache['client_secret'] = None
-        client_id, client_secret = get_cognito_credentials(secret_client=DummyClient())
-        self.assertEqual(client_id, 'cognito-client-id_value')
-        self.assertEqual(client_secret, 'cognito-client-secret_value')
-        # Should be cached now
-        self.assertEqual(_secrets_cache['client_id'], 'cognito-client-id_value')
-        self.assertEqual(_secrets_cache['client_secret'], 'cognito-client-secret_value')
+        orig_environ = os.environ.copy()
+        os.environ['KEY_VAULT_URL'] = 'dummy-url'
+        try:
+            _secrets_cache['client_id'] = None
+            _secrets_cache['client_secret'] = None
+            client_id, client_secret = get_cognito_credentials(secret_client=DummyClient())
+            self.assertEqual(client_id, 'cognito-client-id_value')
+            self.assertEqual(client_secret, 'cognito-client-secret_value')
+            # Should be cached now
+            self.assertEqual(_secrets_cache['client_id'], 'cognito-client-id_value')
+            self.assertEqual(_secrets_cache['client_secret'], 'cognito-client-secret_value')
+        finally:
+            os.environ.clear()
+            os.environ.update(orig_environ)
 
     def test_error_on_missing_key_vault_url(self):
         # Patch os.environ to not have KEY_VAULT_URL

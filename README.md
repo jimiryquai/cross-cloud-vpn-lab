@@ -68,8 +68,8 @@ python -m unittest discover -s tests -v
 - See `docs/` for architecture, NFRs, and test strategy
 - See `src/tests/README.md` for detailed test setup and troubleshooting
 
-## Contributing
-- Ensure all code passes lint, security, and tests before submitting a merge request
+- Ensure all code passes lint (Ruff), security, and tests before submitting a merge request
+- Run `ruff check src` for linting and `ruff format src` for formatting
 - Follow the test strategy in `docs/TEST-STRATEGY.md`
 
 ---

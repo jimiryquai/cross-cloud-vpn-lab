@@ -21,8 +21,7 @@ This checklist highlights key areas to address for making this repository fully 
 - [ ] Automated dependency update tool (Dependabot, Renovate) enabled
 
 ## 5. Code Quality
-- [ ] Linting (ruff, flake8, etc.) enforced in CI
-- [ ] Formatting (black, isort) enforced in CI
+- [ ] Linting and formatting (Ruff) enforced in CI
 - [ ] Pre-commit hooks for lint/format
 
 ## 6. Security

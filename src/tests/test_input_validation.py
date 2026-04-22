@@ -15,14 +15,14 @@ class TestInputValidation(unittest.TestCase):
     def test_single_guid_missing_identifier(self):
         """Should return 400 if Identifier header is missing"""
         url = f"{FUNCTION_BASE_URL}/guid-translation-service/v1/dwp-guid?project=testproj"
-        response = requests.get(url, headers={})
+        response = requests.get(url, headers={}, timeout=5)
         self.assertEqual(response.status_code, 400)
         self.assertIn("Identifier", response.text)
 
     def test_single_guid_missing_project(self):
         """Should return 400 if project param is missing"""
         url = f"{FUNCTION_BASE_URL}/guid-translation-service/v1/dwp-guid"
-        response = requests.get(url, headers={"Identifier": "some-guid"})
+        response = requests.get(url, headers={"Identifier": "some-guid"}, timeout=5)
         self.assertEqual(response.status_code, 400)
         self.assertIn("project", response.text)
 
@@ -30,7 +30,7 @@ class TestInputValidation(unittest.TestCase):
         """Should return 400 if numberOfRecords > 5000 or < 1"""
         url = f"{FUNCTION_BASE_URL}/dwp-guid-bulk-service/v1/translate-nino-bulk?project=testproj"
         payload = {"numberOfRecords": 6000, "identifiers": ["id1"]*6000}
-        response = requests.post(url, json=payload)
+        response = requests.post(url, json=payload, timeout=5)
         self.assertEqual(response.status_code, 400)
         self.assertIn("numberOfRecords", response.text)
 
@@ -38,7 +38,7 @@ class TestInputValidation(unittest.TestCase):
         """Should return 400 if project param is missing"""
         url = f"{FUNCTION_BASE_URL}/dwp-guid-bulk-service/v1/translate-nino-bulk"
         payload = {"numberOfRecords": 2, "identifiers": ["id1", "id2"]}
-        response = requests.post(url, json=payload)
+        response = requests.post(url, json=payload, timeout=5)
         self.assertEqual(response.status_code, 400)
         self.assertIn("project", response.text)
 
@@ -46,7 +46,7 @@ class TestInputValidation(unittest.TestCase):
         """Should return 400 if identifiers field is missing"""
         url = f"{FUNCTION_BASE_URL}/dwp-guid-bulk-service/v1/translate-nino-bulk?project=testproj"
         payload = {"numberOfRecords": 2}
-        response = requests.post(url, json=payload)
+        response = requests.post(url, json=payload, timeout=5)
         self.assertEqual(response.status_code, 400)
         self.assertIn("identifiers", response.text)
 
@@ -54,7 +54,7 @@ class TestInputValidation(unittest.TestCase):
         """Should accept valid payload (if backend is up)"""
         url = f"{FUNCTION_BASE_URL}/dwp-guid-bulk-service/v1/translate-nino-bulk?project=testproj"
         payload = {"numberOfRecords": 2, "identifiers": ["id1", "id2"]}
-        response = requests.post(url, json=payload)
+        response = requests.post(url, json=payload, timeout=5)
         self.assertIn(response.status_code, [200, 400])  # 200 if backend up, 400 if test data invalid
 
 if __name__ == "__main__":

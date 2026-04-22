@@ -1,5 +1,4 @@
 import os
-import logging
 from datetime import datetime, timedelta
 import requests
 from requests.auth import HTTPBasicAuth

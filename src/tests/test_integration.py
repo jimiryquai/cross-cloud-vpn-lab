@@ -18,7 +18,6 @@ import unittest
 import requests
 from shared.auth.secret import get_cognito_credentials, _secrets_cache
 from shared.auth.token import get_cognito_token, _token_cache
-from shared.auth.arn import get_project_arn
 from function_app import call_guid_api
 
 # Test-only secrets/tokens (not for production)

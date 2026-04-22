@@ -1,5 +1,4 @@
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from middleware.project_context import project_context_middleware
 from pydantic import ValidationError, BaseModel
 
