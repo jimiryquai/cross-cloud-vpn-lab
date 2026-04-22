@@ -6,8 +6,6 @@ This repository contains an Azure Function and supporting assets for secure iden
 
 - `src/` — Azure Function app, shared logic, and tests
 - `docs/` — Architecture, NFRs, test strategy, and meeting notes
-- `power-platform/` — Power Platform connectors and solution files
-- `Workflows/` — Workflow definitions
 
 ## Key Features
 
@@ -34,16 +32,25 @@ pip install -r requirements-dev.txt
 ```
 
 ### 2. Configure Environment Variables
+
 Set these for integration tests and production:
-- `KEY_VAULT_URL` — Azure Key Vault URL
-- `COGNITO_DOMAIN` — AWS Cognito domain
-- `GUID_API_URL` — GUID API endpoint
+
+| Variable                            | Required | Description                                             | Default                |
+|-------------------------------------|----------|---------------------------------------------------------|------------------------|
+| `KEY_VAULT_URL`                     | Yes      | Azure Key Vault URL                                     | —                      |
+| `COGNITO_DOMAIN`                    | Yes      | AWS Cognito domain (e.g., `my-domain.auth.us-east-1.amazoncognito.com`) | —                      |
+| `GUID_API_URL`                      | Yes      | GUID API endpoint base URL                              | —                      |
+| `COGNITO_CLIENT_ID_SECRET_NAME`     | No       | Key Vault secret name for Cognito client ID             | `cognito-client-id`    |
+| `COGNITO_CLIENT_SECRET_SECRET_NAME` | No       | Key Vault secret name for Cognito client secret         | `cognito-client-secret`|
 
 Optionally, use a `.env` file (not committed):
 ```
 KEY_VAULT_URL=https://<your-vault>.vault.azure.net
 COGNITO_DOMAIN=...
 GUID_API_URL=...
+# Optional overrides:
+# COGNITO_CLIENT_ID_SECRET_NAME=custom-client-id
+# COGNITO_CLIENT_SECRET_SECRET_NAME=custom-client-secret
 ```
 
 ### 3. Run Tests

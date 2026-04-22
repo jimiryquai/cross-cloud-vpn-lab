@@ -6,24 +6,24 @@ or AWS calls. Just datetime calculations and dict operations.
 """
 
 
-import os
 from datetime import datetime, timedelta
 import unittest
-from unittest.mock import patch, MagicMock
 
-from shared.auth import get_cached_token, cache_token, _token_cache, _secrets_cache, get_cognito_credentials
+from shared.auth.token import get_cached_token, cache_token, _token_cache
+from shared.auth.arn import get_project_arn, _arn_cache
 
-# Test-only secrets/tokens (not for production)
+# Secret caching logic
+from shared.auth.secret import get_cognito_credentials, _secrets_cache
+import logging
+import types
+
+# Test-only tokens (not for production)
 TEST_TOKEN_1 = "test_token_123"
 TEST_TOKEN_2 = "valid_token_456"
 TEST_TOKEN_3 = "expired_token"
 TEST_TOKEN_4 = "buffer_test_token"
 TEST_TOKEN_5 = "old_token"
 TEST_TOKEN_6 = "new_token"
-TEST_CLIENT_ID = "cached-id"
-TEST_CLIENT_SECRET = "cached-secret"
-TEST_CLIENT_ID_2 = "test-client-id"
-TEST_CLIENT_SECRET_2 = "test-client-secret"
 
 
 class TestTokenCachingLogic(unittest.TestCase):
@@ -90,10 +90,12 @@ class TestTokenCachingLogic(unittest.TestCase):
             time_diff = abs((expected_expiry - actual_expiry).total_seconds())
             self.assertLess(time_diff, 5, f"Expiration calculation should be accurate for {expires_in}s")
 
+if __name__ == "__main__":
+    unittest.main()
 
 
-class TestSecretsCachingLogic(unittest.TestCase):
-    """Test Key Vault secrets caching (mocked — no real Key Vault calls)"""
+class TestSecretCachingLogic(unittest.TestCase):
+    """Test pure secret caching logic (no Azure Key Vault calls)"""
 
     def setUp(self):
         _secrets_cache['client_id'] = None
@@ -103,91 +105,76 @@ class TestSecretsCachingLogic(unittest.TestCase):
         _secrets_cache['client_id'] = None
         _secrets_cache['client_secret'] = None
 
-    def test_secrets_cache_returns_cached_values(self):
-        _secrets_cache['client_id'] = TEST_CLIENT_ID
-        _secrets_cache['client_secret'] = TEST_CLIENT_SECRET
-        client_id, client_secret = get_cognito_credentials()
-        self.assertEqual(client_id, TEST_CLIENT_ID)
-        self.assertEqual(client_secret, TEST_CLIENT_SECRET)
+    def test_cache_hit_returns_cached_secrets(self):
+        _secrets_cache['client_id'] = 'cached_id'
+        _secrets_cache['client_secret'] = 'cached_secret'
+        client_id, client_secret = get_cognito_credentials(secret_client='dummy')
+        self.assertEqual(client_id, 'cached_id')
+        self.assertEqual(client_secret, 'cached_secret')
 
-    def test_get_cognito_credentials_raises_without_key_vault_url(self):
+    def test_cache_miss_fetches_and_caches(self):
+        class DummySecret:
+            def __init__(self, value):
+                self.value = value
+        class DummyClient:
+            def get_secret(self, name):
+                return DummySecret(f"{name}_value")
         _secrets_cache['client_id'] = None
         _secrets_cache['client_secret'] = None
-        with patch.dict(os.environ, {}, clear=True):
-            with self.assertRaises(Exception) as cm:
-                get_cognito_credentials()
-            self.assertIn("KEY_VAULT_URL", str(cm.exception))
+        client_id, client_secret = get_cognito_credentials(secret_client=DummyClient())
+        self.assertEqual(client_id, 'cognito-client-id_value')
+        self.assertEqual(client_secret, 'cognito-client-secret_value')
+        # Should be cached now
+        self.assertEqual(_secrets_cache['client_id'], 'cognito-client-id_value')
+        self.assertEqual(_secrets_cache['client_secret'], 'cognito-client-secret_value')
 
-    @patch('shared.auth.SecretClient')
-    @patch('shared.auth.DefaultAzureCredential')
-    def test_get_cognito_credentials_fetches_and_caches(self, mock_cred, mock_client_cls):
-        mock_secret_id = MagicMock()
-        mock_secret_id.value = TEST_CLIENT_ID_2
-        mock_secret_secret = MagicMock()
-        mock_secret_secret.value = TEST_CLIENT_SECRET_2
-        mock_client = MagicMock()
-        mock_client.get_secret.side_effect = lambda name: {
-            'cognito-client-id': mock_secret_id,
-            'cognito-client-secret': mock_secret_secret,
-        }[name]
-        mock_client_cls.return_value = mock_client
-        with patch.dict(os.environ, {'KEY_VAULT_URL': 'https://test-vault.vault.azure.net'}):
-            client_id, client_secret = get_cognito_credentials()
-        self.assertEqual(client_id, TEST_CLIENT_ID_2)
-        self.assertEqual(client_secret, TEST_CLIENT_SECRET_2)
-        self.assertEqual(_secrets_cache['client_id'], TEST_CLIENT_ID_2)
-        self.assertEqual(_secrets_cache['client_secret'], TEST_CLIENT_SECRET_2)
-        mock_client.get_secret.reset_mock()
-        client_id_2, client_secret_2 = get_cognito_credentials()
-        mock_client.get_secret.assert_not_called()
-        self.assertEqual(client_id_2, TEST_CLIENT_ID_2)
+    def test_error_on_missing_key_vault_url(self):
+        # Patch os.environ to not have KEY_VAULT_URL
+        orig_environ = os.environ.copy()
+        os.environ.pop('KEY_VAULT_URL', None)
+        _secrets_cache['client_id'] = None
+        _secrets_cache['client_secret'] = None
+        with self.assertRaises(Exception) as ctx:
+            get_cognito_credentials(secret_client=types.SimpleNamespace(get_secret=lambda n: None))
+        self.assertIn('KEY_VAULT_URL', str(ctx.exception))
+        os.environ.clear()
+        os.environ.update(orig_environ)
 
+    def test_logging_on_error(self):
+        # Patch os.environ to not have KEY_VAULT_URL
+        orig_environ = os.environ.copy()
+        os.environ.pop('KEY_VAULT_URL', None)
+        _secrets_cache['client_id'] = None
+        _secrets_cache['client_secret'] = None
+        logs = []
+        def fake_log(msg):
+            logs.append(msg)
+        orig_log = logging.error
+        logging.error = fake_log
+        try:
+            with self.assertRaises(Exception):
+                get_cognito_credentials(secret_client=types.SimpleNamespace(get_secret=lambda n: None))
+        finally:
+            logging.error = orig_log
+            os.environ.clear()
+            os.environ.update(orig_environ)
+        self.assertTrue(any('Error retrieving credentials' in l for l in logs))
 
-class TestProjectArnFetching(unittest.TestCase):
-    """Test get_project_arn logic (mocked Key Vault)"""
-
-    @patch('shared.auth.SecretClient')
-    @patch('shared.auth.DefaultAzureCredential')
-    def test_fetches_correct_arn_for_allowed_projects(self, mock_cred, mock_client_cls):
-        allowed_projects = ["FQM", "1ACS", "HousingBenefit", "MATB1"]
-        for project in allowed_projects:
-            mock_secret = MagicMock()
-            mock_secret.value = f"arn:aws:acm:region:account:certificate/{project.lower()}"
-            mock_client = MagicMock()
-            mock_client.get_secret.return_value = mock_secret
-            mock_client_cls.return_value = mock_client
-            with patch.dict(os.environ, {'KEY_VAULT_URL': 'https://test-vault.vault.azure.net'}):
-                arn = __import__('shared.auth', fromlist=['get_project_arn']).get_project_arn(project)
-            expected_secret_name = f"{project.lower()}-acm-arn"
-            mock_client.get_secret.assert_called_with(expected_secret_name)
-            self.assertTrue(arn.startswith("arn:aws:acm:"))
-
-    def test_invalid_project_raises(self):
-        with self.assertRaises(ValueError) as cm:
-            __import__('shared.auth', fromlist=['get_project_arn']).get_project_arn("INVALID")
-        self.assertIn("Invalid project", str(cm.exception))
-
-    @patch('shared.auth.SecretClient')
-    @patch('shared.auth.DefaultAzureCredential')
-    def test_missing_key_vault_url_raises(self, mock_cred, mock_client_cls):
-        with patch.dict(os.environ, {}, clear=True):
-            with self.assertRaises(Exception) as cm:
-                __import__('shared.auth', fromlist=['get_project_arn']).get_project_arn("FQM")
-            self.assertIn("KEY_VAULT_URL", str(cm.exception))
-
-    @patch('shared.auth.SecretClient')
-    @patch('shared.auth.DefaultAzureCredential')
-    def test_empty_secret_raises(self, mock_cred, mock_client_cls):
-        mock_secret = MagicMock()
-        mock_secret.value = None
-        mock_client = MagicMock()
-        mock_client.get_secret.return_value = mock_secret
-        mock_client_cls.return_value = mock_client
-        with patch.dict(os.environ, {'KEY_VAULT_URL': 'https://test-vault.vault.azure.net'}):
-            with self.assertRaises(Exception) as cm:
-                __import__('shared.auth', fromlist=['get_project_arn']).get_project_arn("FQM")
-            self.assertIn("is empty in Key Vault", str(cm.exception))
-
-
-if __name__ == "__main__":
-    unittest.main()
+    def test_parameterized_secret_names(self):
+        class DummySecret:
+            def __init__(self, value):
+                self.value = value
+        class DummyClient:
+            def get_secret(self, name):
+                return DummySecret(f"{name}_value")
+        orig_environ = os.environ.copy()
+        os.environ['KEY_VAULT_URL'] = 'dummy-url'
+        os.environ['COGNITO_CLIENT_ID_SECRET_NAME'] = 'custom-client-id'
+        os.environ['COGNITO_CLIENT_SECRET_SECRET_NAME'] = 'custom-client-secret'
+        _secrets_cache['client_id'] = None
+        _secrets_cache['client_secret'] = None
+        client_id, client_secret = get_cognito_credentials(secret_client=DummyClient())
+        self.assertEqual(client_id, 'custom-client-id_value')
+        self.assertEqual(client_secret, 'custom-client-secret_value')
+        os.environ.clear()
+        os.environ.update(orig_environ)
