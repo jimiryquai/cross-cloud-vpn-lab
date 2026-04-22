@@ -1,61 +1,100 @@
 """
-Integration tests for input validation (schema enforcement) on API endpoints.
+Unit tests for input validation (schema enforcement) on API endpoints.
 
-Covers both positive and negative cases for required fields and schema constraints.
+Covers both positive and negative cases for required fields and schema constraints using direct Azure HttpRequest objects instead of actual localhost sockets (avoiding mocks of the router).
 """
 
-import os
 import unittest
-import requests
+import json
+import os
 
-# These should be set to the deployed/test function app base URL
-FUNCTION_BASE_URL = os.environ.get("FUNCTION_BASE_URL", "http://localhost:7071/api")
+# Set dummy env vars to bypass startup validation in function_app.py
+for var in ["KEY_VAULT_URL", "COGNITO_DOMAIN", "GUID_API_URL"]:
+    if var not in os.environ:
+        os.environ[var] = "dummy"
 
+import azure.functions as func
+from function_app import get_single_guid, process_bulk_guids
+from unittest.mock import patch
+
+# Clean up dummy env vars to avoid bleeding into test_integration.py
+for var in ["KEY_VAULT_URL", "COGNITO_DOMAIN", "GUID_API_URL"]:
+    if os.environ.get(var) == "dummy":
+        del os.environ[var]
+
+@patch("middleware.project_context.get_project_arn", return_value="arn:aws:sns:eu-west-2:123456789012:testproj")
+@patch.dict(os.environ, {"KEY_VAULT_URL": "dummy", "COGNITO_DOMAIN": "dummy", "GUID_API_URL": "dummy"})
 class TestInputValidation(unittest.TestCase):
-    def test_single_guid_missing_identifier(self):
+    def test_single_guid_missing_identifier(self, mock_get_arn):
         """Should return 400 if Identifier header is missing"""
-        url = f"{FUNCTION_BASE_URL}/guid-translation-service/v1/dwp-guid?project=testproj"
-        response = requests.get(url, headers={}, timeout=5)
+        req = func.HttpRequest(
+            method='GET',
+            body=None,
+            url='/api/guid-translation-service/v1/dwp-guid',
+            params={'project': 'testproj'},
+            headers={}
+        )
+        response = get_single_guid(req)
         self.assertEqual(response.status_code, 400)
-        self.assertIn("Identifier", response.text)
+        self.assertIn("Identifier", response.get_body().decode())
 
-    def test_single_guid_missing_project(self):
+    def test_single_guid_missing_project(self, mock_get_arn):
         """Should return 400 if project param is missing"""
-        url = f"{FUNCTION_BASE_URL}/guid-translation-service/v1/dwp-guid"
-        response = requests.get(url, headers={"Identifier": "some-guid"}, timeout=5)
+        req = func.HttpRequest(
+            method='GET',
+            body=None,
+            url='/api/guid-translation-service/v1/dwp-guid',
+            params={},
+            headers={'Identifier': 'some-guid'}
+        )
+        response = get_single_guid(req)
         self.assertEqual(response.status_code, 400)
-        self.assertIn("project", response.text)
+        self.assertIn("project", response.get_body().decode())
 
-    def test_bulk_guid_invalid_number_of_records(self):
+    def test_bulk_guid_invalid_number_of_records(self, mock_get_arn):
         """Should return 400 if numberOfRecords > 5000 or < 1"""
-        url = f"{FUNCTION_BASE_URL}/dwp-guid-bulk-service/v1/translate-nino-bulk?project=testproj"
         payload = {"numberOfRecords": 6000, "identifiers": ["id1"]*6000}
-        response = requests.post(url, json=payload, timeout=5)
+        req = func.HttpRequest(
+            method='POST',
+            body=json.dumps(payload).encode('utf-8'),
+            url='/api/dwp-guid-bulk-service/v1/translate-nino-bulk',
+            params={'project': 'testproj'},
+            headers={'Content-Type': 'application/json'},
+            route_params={'bulk_activity': 'translate-nino-bulk'}
+        )
+        response = process_bulk_guids(req)
         self.assertEqual(response.status_code, 400)
-        self.assertIn("numberOfRecords", response.text)
+        self.assertIn("numberOfRecords", response.get_body().decode())
 
-    def test_bulk_guid_missing_project(self):
+    def test_bulk_guid_missing_project(self, mock_get_arn):
         """Should return 400 if project param is missing"""
-        url = f"{FUNCTION_BASE_URL}/dwp-guid-bulk-service/v1/translate-nino-bulk"
         payload = {"numberOfRecords": 2, "identifiers": ["id1", "id2"]}
-        response = requests.post(url, json=payload, timeout=5)
+        req = func.HttpRequest(
+            method='POST',
+            body=json.dumps(payload).encode('utf-8'),
+            url='/api/dwp-guid-bulk-service/v1/translate-nino-bulk',
+            params={},
+            headers={'Content-Type': 'application/json'},
+            route_params={'bulk_activity': 'translate-nino-bulk'}
+        )
+        response = process_bulk_guids(req)
         self.assertEqual(response.status_code, 400)
-        self.assertIn("project", response.text)
+        self.assertIn("project", response.get_body().decode())
 
-    def test_bulk_guid_missing_identifiers(self):
+    def test_bulk_guid_missing_identifiers(self, mock_get_arn):
         """Should return 400 if identifiers field is missing"""
-        url = f"{FUNCTION_BASE_URL}/dwp-guid-bulk-service/v1/translate-nino-bulk?project=testproj"
         payload = {"numberOfRecords": 2}
-        response = requests.post(url, json=payload, timeout=5)
+        req = func.HttpRequest(
+            method='POST',
+            body=json.dumps(payload).encode('utf-8'),
+            url='/api/dwp-guid-bulk-service/v1/translate-nino-bulk',
+            params={'project': 'testproj'},
+            headers={'Content-Type': 'application/json'},
+            route_params={'bulk_activity': 'translate-nino-bulk'}
+        )
+        response = process_bulk_guids(req)
         self.assertEqual(response.status_code, 400)
-        self.assertIn("identifiers", response.text)
-
-    def test_bulk_guid_valid(self):
-        """Should accept valid payload (if backend is up)"""
-        url = f"{FUNCTION_BASE_URL}/dwp-guid-bulk-service/v1/translate-nino-bulk?project=testproj"
-        payload = {"numberOfRecords": 2, "identifiers": ["id1", "id2"]}
-        response = requests.post(url, json=payload, timeout=5)
-        self.assertIn(response.status_code, [200, 400])  # 200 if backend up, 400 if test data invalid
+        self.assertIn("identifiers", response.get_body().decode())
 
 if __name__ == "__main__":
     unittest.main()

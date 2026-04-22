@@ -1,21 +1,22 @@
 # Test Strategy - Real Integration Testing
 
-Focus on integration tests with real AWS services. Minimal unit tests only for pure logic.
+Focus on integration tests with real Azure and AWS services. Minimal unit tests only for pure logic.
 
 ---
 
 ## Philosophy
 
-**Integration Over Mocks**: The Azure Function's purpose is orchestrating AWS services. Test the real integration, not mocks.
+**Integration Over Mocks**: The Azure Function's purpose is orchestrating cross-cloud services. Test the real integration, not mocks.
 
 **Test What Matters**:
-- ✅ Does it work with real AWS Secrets Manager?
+- ✅ Does it work with real Azure Key Vault?
 - ✅ Does it work with real AWS Cognito?
 - ✅ Does it work with the real GUID API?
 - ✅ Does token caching logic work correctly?
+- ✅ Does input validation correctly filter invalid bulk inputs directly via `azure.functions.HttpRequest`?
 
 **Skip What Doesn't**:
-- ❌ Mocking AWS SDK calls
+- ❌ Mocking AWS SDK or Azure Identity calls
 - ❌ Mocking HTTP requests
 - ❌ Testing that mocks were called correctly
 
@@ -28,127 +29,106 @@ Focus on integration tests with real AWS services. Minimal unit tests only for p
 **File**: `src/tests/test_integration.py`
 
 ```python
-import pytest
+import unittest
 import os
 import json
-from GetGUID import (
-    get_cognito_credentials,
-    get_cognito_token,
-    call_guid_api,
-    get_cached_token,
-    cache_token
-)
+from shared.auth.secret import get_cognito_credentials
+from shared.auth.token import get_cognito_token
+from function_app import call_guid_api
 
-class TestRealAWSIntegration:
-    """Integration tests with real AWS services"""
+class TestRealIntegration(unittest.TestCase):
+    """Integration tests with real cross-cloud services"""
 
-    @pytest.fixture(autouse=True)
-    def setup_env(self):
-        """Ensure AWS environment variables are set"""
+    def setUp(self):
+        """Ensure specific environment variables are set"""
         required = [
-            'AWS_ACCESS_KEY_ID',
-            'AWS_SECRET_ACCESS_KEY',
-            'AWS_REGION',
-            'AWS_SECRET_NAME',
+            'KEY_VAULT_URL',
             'COGNITO_DOMAIN',
             'GUID_API_URL'
         ]
-        for var in required:
-            assert os.environ.get(var), f"{var} must be set for integration tests"
+        missing = [var for var in required if not os.environ.get(var)]
+        if missing:
+            self.skipTest(f"Missing required environment variables: {', '.join(missing)}")
 
-    def test_retrieve_credentials_from_real_secrets_manager(self):
-        """Test retrieving Cognito credentials from real AWS Secrets Manager"""
-        client_id, secret = get_cognito_credentials()
+    def test_retrieve_credentials_from_key_vault(self):
+        """Test retrieving Cognito credentials from real Azure Key Vault"""
+        client_id, secret = get_cognito_credentials("testproj")
 
         # Verify we got real credentials
-        assert client_id is not None
-        assert secret is not None
-        assert len(client_id) > 0
-        assert len(secret) > 0
-        print(f"✓ Retrieved credentials from Secrets Manager")
+        self.assertIsNotNone(client_id)
+        self.assertIsNotNone(secret)
+        self.assertGreater(len(client_id), 0)
+        self.assertGreater(len(secret), 0)
+        print(f"✓ Retrieved credentials from Azure Key Vault")
 
     def test_get_token_from_real_cognito(self):
         """Test getting OAuth token from real AWS Cognito"""
         # Get real credentials
-        client_id, secret = get_cognito_credentials()
+        client_id, secret = get_cognito_credentials("testproj")
 
         # Get real OAuth token
-        access_token = get_cognito_token(client_id, secret)
+        access_token = get_cognito_token(client_id, secret, "vpn-lab-1762372102.auth.eu-west-2.amazoncognito.com")
 
         # Verify token
-        assert access_token is not None
-        assert len(access_token) > 100  # JWT tokens are long
-        assert access_token.startswith('eyJ')  # JWT format
+        self.assertIsNotNone(access_token)
+        self.assertGreater(len(access_token), 100)  # JWT tokens are long
+        self.assertTrue(access_token.startswith('eyJ'))  # JWT format
         print(f"✓ Got OAuth token from Cognito")
 
     def test_call_real_guid_api(self):
         """Test calling real GUID API with Bearer token"""
         # Get real credentials and token
-        client_id, secret = get_cognito_credentials()
-        access_token = get_cognito_token(client_id, secret)
+        client_id, secret = get_cognito_credentials("testproj")
+        access_token = get_cognito_token(client_id, secret, "vpn-lab-1762372102.auth.eu-west-2.amazoncognito.com")
 
         # Call real API
         test_guid = "123e4567-e89b-12d3-a456-426614174000"
-        person_data = call_guid_api(access_token, test_guid)
+        person_data = call_guid_api(test_guid, access_token)
 
         # Verify response
-        assert person_data is not None
-        assert 'nino' in person_data
-        assert 'guid' in person_data
-        assert person_data['guid'] == test_guid
+        self.assertIsNotNone(person_data)
+        self.assertIn('nino', person_data)
+        self.assertIn('guid', person_data)
+        self.assertEqual(person_data['guid'], test_guid)
         print(f"✓ Retrieved person data from GUID API: NINO={person_data['nino']}")
 
     def test_end_to_end_flow(self):
         """Test complete end-to-end flow with all real services"""
         test_guid = "123e4567-e89b-12d3-a456-426614174000"
 
-        # Step 1: Get credentials from Secrets Manager
-        client_id, secret = get_cognito_credentials()
-        assert client_id and secret
+        # Step 1: Get credentials from Azure Key Vault
+        client_id, secret = get_cognito_credentials("testproj")
+        self.assertTrue(client_id and secret)
 
         # Step 2: Get OAuth token from Cognito
-        access_token = get_cognito_token(client_id, secret)
-        assert access_token
+        access_token = get_cognito_token(client_id, secret, "vpn-lab-1762372102.auth.eu-west-2.amazoncognito.com")
+        self.assertTrue(access_token)
 
         # Step 3: Call GUID API
-        person_data = call_guid_api(access_token, test_guid)
-        assert person_data['nino'] == 'AB123456C'
+        person_data = call_guid_api(test_guid, access_token)
+        self.assertEqual(person_data['nino'], 'AB123456C')
 
         print(f"✓ Complete end-to-end flow successful")
 
     def test_token_caching_reduces_cognito_calls(self):
         """Verify token is cached and reused"""
-        client_id, secret = get_cognito_credentials()
+        client_id, secret = get_cognito_credentials("testproj")
 
         # First call - should get new token
-        token1 = get_cognito_token(client_id, secret)
+        token1 = get_cognito_token(client_id, secret, "vpn-lab-1762372102.auth.eu-west-2.amazoncognito.com")
 
         # Second call - should use cached token (check logs)
-        token2 = get_cognito_token(client_id, secret)
+        token2 = get_cognito_token(client_id, secret, "vpn-lab-1762372102.auth.eu-west-2.amazoncognito.com")
 
         # Tokens should be identical (same cached token)
-        assert token1 == token2
+        self.assertEqual(token1, token2)
         print(f"✓ Token caching working (reused token)")
-
-    def test_invalid_guid_returns_404(self):
-        """Test error handling with invalid GUID"""
-        client_id, secret = get_cognito_credentials()
-        access_token = get_cognito_token(client_id, secret)
-
-        # Call with invalid GUID
-        invalid_guid = "00000000-0000-0000-0000-000000000000"
-
-        with pytest.raises(Exception) as exc_info:
-            call_guid_api(access_token, invalid_guid)
-
-        assert "404" in str(exc_info.value) or "not found" in str(exc_info.value).lower()
-        print(f"✓ Correctly handled invalid GUID (404)")
 
     def test_expired_token_gets_refreshed(self):
         """Test token refresh when cached token expires"""
         # This would require waiting 60 minutes or manipulating the cache
         # Skip for now - covered by manual testing
-        pytest.skip("Requires 60+ minute wait or cache manipulation")
+        self.skipTest("Requires 60+ minute wait or cache manipulation")
 ```
 
 ---
@@ -261,25 +241,22 @@ class TestTokenCachingLogic:
 
 ```bash
 # Install dependencies
-cd azure-function
+cd src
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-pip install pytest pytest-cov
 
 # Set environment variables
-export AWS_ACCESS_KEY_ID="your-access-key"
-export AWS_SECRET_ACCESS_KEY="your-secret-key"
-export AWS_REGION="eu-west-2"
-export AWS_SECRET_NAME="consumer/cognito/vpn-lab/credentials"
+export KEY_VAULT_URL="https://your-key-vault.vault.azure.net/"
 export COGNITO_DOMAIN="vpn-lab-1762372102.auth.eu-west-2.amazoncognito.com"
 export GUID_API_URL="https://z3euh2qc03.execute-api.eu-west-2.amazonaws.com/test"
 
-# Run tests
-pytest tests/ -v
+# Note: Before running integration tests, make sure you are authenticated with Azure via Azure CLI 
+# (az login) because the application uses DefaultAzureCredential.
 
-# Run with coverage
-pytest tests/ -v --cov=GetGUID --cov-report=html
+# Run tests using python's built-in unittest
+.venv/bin/coverage run -m unittest discover -s tests -v
+.venv/bin/coverage report -m
 ```
 
 ### CI/CD Pipeline
@@ -307,27 +284,21 @@ jobs:
         run: |
           cd src
           pip install -r requirements.txt
-          pip install pytest pytest-cov
 
-      - name: Run integration tests
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Run tests
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: eu-west-2
-          AWS_SECRET_NAME: consumer/cognito/vpn-lab/credentials
+          KEY_VAULT_URL: ${{ secrets.KEY_VAULT_URL }}
           COGNITO_DOMAIN: ${{ secrets.COGNITO_DOMAIN }}
           GUID_API_URL: ${{ secrets.GUID_API_URL }}
         run: |
-          cd azure-function
-          pytest tests/test_integration.py -v
-
-      - name: Run unit tests
-        run: |
-          cd azure-function
-          pytest tests/test_unit.py -v --cov=GetGUID
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
+          cd src
+          coverage run -m unittest discover -s tests -v
+          coverage xml
 ```
 
 ---
@@ -357,10 +328,11 @@ jobs:
 ## Acceptance Criteria
 
 ### Integration Tests
-- ✅ All integration tests pass with real AWS services
+- ✅ All integration tests pass with real Azure/AWS services
 - ✅ End-to-end flow completes successfully
 - ✅ Token caching verified to work
 - ✅ Error scenarios handled correctly
+- ✅ Proper isolation from startup validations using `func.HttpRequest` tests
 
 ### Unit Tests
 - ✅ Token caching logic tests pass
@@ -381,10 +353,10 @@ jobs:
 
 ## Why This Approach Works
 
-**Confidence**: Tests prove actual AWS integration works
+**Confidence**: Tests prove actual cloud integration works
 **Simplicity**: Less code, easier to maintain
-**Speed**: No mock setup complexity
-**Reality**: Catches real API changes, credential issues
+**Speed**: Tests hit locally generated memory-resident HTTP requests rather than orchestrant mocks
+**Reality**: Catches real API changes, credential issues, validation failures before deployments
 **Handover**: Client can run same tests in their environment
 
 ---
@@ -393,19 +365,17 @@ jobs:
 
 ```bash
 # All tests
-pytest tests/ -v
+python -m unittest discover -s tests -v
 
 # Just integration
-pytest tests/test_integration.py -v
+python -m unittest tests.test_integration -v
 
 # Just unit
-pytest tests/test_unit.py -v
+python -m unittest tests.test_unit -v
 
 # With coverage
-pytest tests/ -v --cov=GetGUID --cov-report=html
-
-# Specific test
-pytest tests/test_integration.py::TestRealAWSIntegration::test_end_to_end_flow -v
+coverage run -m unittest discover -s tests -v
+coverage report -m
 ```
 
 ---

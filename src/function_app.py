@@ -78,7 +78,6 @@ def call_guid_api(access_token, identifier, correlation_id):
 
 # 1. Single Lookup (GET)
 
-def get_single_guid(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="guid-translation-service/v1/dwp-guid", methods=["GET"])
 @project_context_middleware
 def get_single_guid(req: func.HttpRequest) -> func.HttpResponse:
@@ -128,7 +127,6 @@ def get_single_guid(req: func.HttpRequest) -> func.HttpResponse:
 
 # 2. Bulk Processing (POST)
 
-def process_bulk_guids(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="dwp-guid-bulk-service/v1/{bulk_activity}", methods=["POST"])
 @project_context_middleware
 def process_bulk_guids(req: func.HttpRequest) -> func.HttpResponse:
@@ -193,7 +191,6 @@ def process_bulk_guids(req: func.HttpRequest) -> func.HttpResponse:
         )
 
 # 3. Daily Allowance (GET)
-def get_daily_allowance(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="dwp-guid-bulk-service/v1/remaining-daily-allowance", methods=["GET"])
 @project_context_middleware
 def get_daily_allowance(req: func.HttpRequest) -> func.HttpResponse:
