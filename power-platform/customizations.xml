@@ -1,0 +1,30 @@
+<ImportExportXml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" OrganizationVersion="9.2.26041.165" OrganizationSchemaType="Full" CRMServerServiceabilityVersion="9.2.26041.00165">
+  <Entities></Entities>
+  <Roles></Roles>
+  <Workflows></Workflows>
+  <FieldSecurityProfiles></FieldSecurityProfiles>
+  <Templates />
+  <EntityMaps />
+  <EntityRelationships />
+  <OrganizationSettings />
+  <optionsets />
+  <CustomControls />
+  <EntityDataProviders />
+  <Connectors>
+    <Connector>
+      <connectorid>3c2fd8b9-5160-473f-ad9f-380cdde6091e</connectorid>
+      <description>Direct-to-Function Proxy for GUID Translation (single + bulk)</description>
+      <displayname>GUID Service</displayname>
+      <iconbrandcolor>#007ee5</iconbrandcolor>
+      <name>dwp_5Fguid-20service</name>
+      <connectortype>1</connectortype>
+      <openapidefinition>/Connector/dwp_5Fguid-20service_openapidefinition.json</openapidefinition>
+      <connectionparameters>/Connector/dwp_5Fguid-20service_connectionparameters.json</connectionparameters>
+      <policytemplateinstances>/Connector/dwp_5Fguid-20service_policytemplateinstances.json</policytemplateinstances>
+      <iconblob>/Connector/dwp_5Fguid-20service_iconblob.Png</iconblob>
+    </Connector>
+  </Connectors>
+  <Languages>
+    <Language>1033</Language>
+  </Languages>
+</ImportExportXml>

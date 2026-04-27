@@ -214,22 +214,15 @@ class TestTokenCachingLogic:
 
 **Power Platform Custom Connector Tests**:
 
-- [ ] **Direct Connector** (`jr_getnino`)
-  - [ ] Create connection with Function key
+- [ ] **Direct Connector**
+  - [ ] Create connection
   - [ ] Test with valid GUID
   - [ ] Test with invalid GUID
   - [ ] Verify response time (<500ms warm)
   - [ ] Test error scenarios
 
-- [ ] **APIM Connector** (`new_5Fguid-20service-20api`)
-  - [ ] Create connection with APIM subscription key
-  - [ ] Test with valid GUID
-  - [ ] Test APIM caching (second call <50ms)
-  - [ ] Test rate limiting (>1000 calls/hour)
-  - [ ] Verify APIM analytics working
-
 - [ ] **Power Automate Flow**
-  - [ ] Build test flow with both connectors
+  - [ ] Build test flow
   - [ ] Verify outputs match expected format
   - [ ] Test error handling in flow
 

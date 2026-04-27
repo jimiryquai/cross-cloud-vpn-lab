@@ -1,0 +1,28 @@
+User Story 1: Single Case Identifier Display (GUID to NINO)
+As an Assurance Officer I want the system to display the correct NINO when I open a case So that I can easily identify the record without manually translating system identifiers.
+Acceptance Criteria:
+•	Given an Assurance Officer opens a case assurance record associated with a specific GUID, When the UI renders, Then the system must retrieve and display the corresponding NINO.
+•	Given the system retrieves a NINO, When the operation is performed, Then an audit entry must be logged containing the requestor's identity and the target GUID.
+
+User Story 2: Bulk Identifier Transformation (NINO to GUID)
+As a File Uploader I want to upload a file of NINOs and have the system automatically convert them to GUIDs So that the data can be imported into the system using the correct technical identifiers.
+Acceptance Criteria:
+•	Given I upload a file containing valid NINOs, When the import process runs, Then all valid NINOs must be translated to their corresponding GUIDs.
+•	Given the transformation process completes, When the system passes the data to the final import stage, Then only the GUIDs must be present in the payload.
+ 
+Technical Story 1: Secure Multi-Cloud Auth Pipeline & Caching
+Context: The Azure Function must support multiple concurrent projects dynamically based on the incoming Project-ID header. Requirements:
+•	Tenant Isolation: The system must maintain segregated token caches for each unique Project-ID to prevent cross-tenant credential leakage.
+•	Dynamic Resolution: The system must resolve AWS credentials dynamically based on the Project-ID header.
+•	Zero-Code Onboarding (The "No Hardcoding" Rule): The onboarding of a new project must be achievable solely through the addition of standardized secrets in Azure Key Vault (e.g., [Project-ID]-client-secret). The function must not contain a static "whitelist" of project names.
+•	Error Handling: If a Project-ID is provided that does not have corresponding secrets in Key Vault, the system must return a clean 401 Unauthorized or 400 Bad Request.
+
+Technical Story 2: Bulk Processing Engine & Data Security
+Context: The NINO-to-GUID bulk transformation requires handling large files while maintaining strict data hygiene. Requirements:
+•	The system must chunk the uploaded files and process the transformation in discrete batches of no more than 5,000 records per API call.
+•	To maintain data security, the original NINOs must be immediately discarded from memory once the GUID translation is confirmed; they must not be retained in any temporary database or log.
+
+Technical Story 3: System Resilience & Multi-Hop Reliability
+Context: Daisy-chaining Power Platform to Azure to AWS introduces multiple points of failure, threatening the 99.9% Reliability and 10 TPS burst targets. Requirements:
+•	The Power Platform Custom Connector (or the Function itself) must implement a retry policy with exponential backoff to mask transient network errors.
+•	Provision the Azure Function and Key Vault in paired UK regions (UK South / UK West) with an automated failover mechanism (e.g., Azure Front Door) to meet the < 30s recovery time objective (RTO).
