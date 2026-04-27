@@ -16,9 +16,3 @@ indent-style = "space"
 line-ending = "auto"
 
 
-# Poe the Poet tasks
-[tool.poe.tasks]
-lint = ".venv\\Scripts\\ruff.exe check ."
-format = ".venv\\Scripts\\ruff.exe format ."
-typecheck = ".venv\\Scripts\\mypy.exe ."
-all = { shell = ".venv\\Scripts\\ruff.exe check . ; .venv\\Scripts\\ruff.exe format . ; .venv\\Scripts\\mypy.exe ." }
