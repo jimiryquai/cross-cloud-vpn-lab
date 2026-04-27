@@ -5,7 +5,6 @@ Tests token caching and secrets caching logic — no Azure Key Vault
 or AWS calls. Just datetime calculations and dict operations.
 """
 
-
 from datetime import datetime, timedelta
 import unittest
 
@@ -30,12 +29,12 @@ class TestTokenCachingLogic(unittest.TestCase):
     """Test pure token caching logic (no AWS calls)"""
 
     def setUp(self):
-        _token_cache['access_token'] = None
-        _token_cache['expires_at'] = None
+        _token_cache["access_token"] = None
+        _token_cache["expires_at"] = None
 
     def tearDown(self):
-        _token_cache['access_token'] = None
-        _token_cache['expires_at'] = None
+        _token_cache["access_token"] = None
+        _token_cache["expires_at"] = None
 
     def test_get_cached_token_returns_none_when_empty(self):
         result = get_cached_token()
@@ -44,10 +43,10 @@ class TestTokenCachingLogic(unittest.TestCase):
     def test_cache_token_stores_with_expiration(self):
         expires_in = 3600  # 1 hour
         cache_token(TEST_TOKEN_1, expires_in)
-        self.assertEqual(_token_cache['access_token'], TEST_TOKEN_1)
-        self.assertIsNotNone(_token_cache['expires_at'])
+        self.assertEqual(_token_cache["access_token"], TEST_TOKEN_1)
+        self.assertIsNotNone(_token_cache["expires_at"])
         expected_expiry = datetime.now() + timedelta(seconds=expires_in)
-        actual_expiry = _token_cache['expires_at']
+        actual_expiry = _token_cache["expires_at"]
         time_diff = abs((expected_expiry - actual_expiry).total_seconds())
         self.assertLess(time_diff, 5, f"Expiration should be ~1 hour from now (diff: {time_diff}s)")
 
@@ -57,14 +56,14 @@ class TestTokenCachingLogic(unittest.TestCase):
         self.assertEqual(retrieved, TEST_TOKEN_2)
 
     def test_get_cached_token_returns_none_when_expired(self):
-        _token_cache['access_token'] = TEST_TOKEN_3
-        _token_cache['expires_at'] = datetime.now() - timedelta(seconds=10)
+        _token_cache["access_token"] = TEST_TOKEN_3
+        _token_cache["expires_at"] = datetime.now() - timedelta(seconds=10)
         result = get_cached_token()
         self.assertIsNone(result, "Expired token should not be returned")
 
     def test_cache_includes_60_second_buffer(self):
-        _token_cache['access_token'] = TEST_TOKEN_4
-        _token_cache['expires_at'] = datetime.now() + timedelta(seconds=50)
+        _token_cache["access_token"] = TEST_TOKEN_4
+        _token_cache["expires_at"] = datetime.now() + timedelta(seconds=50)
         result = get_cached_token()
         self.assertIsNone(result, "Token within 60s buffer should not be returned")
 
@@ -79,16 +78,17 @@ class TestTokenCachingLogic(unittest.TestCase):
 
     def test_cache_with_different_expiration_times(self):
         test_cases = [
-            ("short_token", 60),      # 1 minute
-            ("medium_token", 1800),   # 30 minutes
-            ("long_token", 3600),     # 1 hour
+            ("short_token", 60),  # 1 minute
+            ("medium_token", 1800),  # 30 minutes
+            ("long_token", 3600),  # 1 hour
         ]
         for token, expires_in in test_cases:
             cache_token(token, expires_in)
             expected_expiry = datetime.now() + timedelta(seconds=expires_in)
-            actual_expiry = _token_cache['expires_at']
+            actual_expiry = _token_cache["expires_at"]
             time_diff = abs((expected_expiry - actual_expiry).total_seconds())
             self.assertLess(time_diff, 5, f"Expiration calculation should be accurate for {expires_in}s")
+
 
 if __name__ == "__main__":
     unittest.main()
@@ -98,38 +98,40 @@ class TestSecretCachingLogic(unittest.TestCase):
     """Test pure secret caching logic (no Azure Key Vault calls)"""
 
     def setUp(self):
-        _secrets_cache['client_id'] = None
-        _secrets_cache['client_secret'] = None
+        _secrets_cache["client_id"] = None
+        _secrets_cache["client_secret"] = None
 
     def tearDown(self):
-        _secrets_cache['client_id'] = None
-        _secrets_cache['client_secret'] = None
+        _secrets_cache["client_id"] = None
+        _secrets_cache["client_secret"] = None
 
     def test_cache_hit_returns_cached_secrets(self):
-        _secrets_cache['client_id'] = 'cached_id'
-        _secrets_cache['client_secret'] = 'cached_secret'
-        client_id, client_secret = get_cognito_credentials(secret_client='dummy')
-        self.assertEqual(client_id, 'cached_id')
-        self.assertEqual(client_secret, 'cached_secret')
+        _secrets_cache["client_id"] = "cached_id"
+        _secrets_cache["client_secret"] = "cached_secret"
+        client_id, client_secret = get_cognito_credentials(secret_client="dummy")
+        self.assertEqual(client_id, "cached_id")
+        self.assertEqual(client_secret, "cached_secret")
 
     def test_cache_miss_fetches_and_caches(self):
         class DummySecret:
             def __init__(self, value):
                 self.value = value
+
         class DummyClient:
             def get_secret(self, name):
                 return DummySecret(f"{name}_value")
+
         orig_environ = os.environ.copy()
-        os.environ['KEY_VAULT_URL'] = 'dummy-url'
+        os.environ["KEY_VAULT_URL"] = "dummy-url"
         try:
-            _secrets_cache['client_id'] = None
-            _secrets_cache['client_secret'] = None
+            _secrets_cache["client_id"] = None
+            _secrets_cache["client_secret"] = None
             client_id, client_secret = get_cognito_credentials(secret_client=DummyClient())
-            self.assertEqual(client_id, 'cognito-client-id_value')
-            self.assertEqual(client_secret, 'cognito-client-secret_value')
+            self.assertEqual(client_id, "cognito-client-id_value")
+            self.assertEqual(client_secret, "cognito-client-secret_value")
             # Should be cached now
-            self.assertEqual(_secrets_cache['client_id'], 'cognito-client-id_value')
-            self.assertEqual(_secrets_cache['client_secret'], 'cognito-client-secret_value')
+            self.assertEqual(_secrets_cache["client_id"], "cognito-client-id_value")
+            self.assertEqual(_secrets_cache["client_secret"], "cognito-client-secret_value")
         finally:
             os.environ.clear()
             os.environ.update(orig_environ)
@@ -137,24 +139,26 @@ class TestSecretCachingLogic(unittest.TestCase):
     def test_error_on_missing_key_vault_url(self):
         # Patch os.environ to not have KEY_VAULT_URL
         orig_environ = os.environ.copy()
-        os.environ.pop('KEY_VAULT_URL', None)
-        _secrets_cache['client_id'] = None
-        _secrets_cache['client_secret'] = None
+        os.environ.pop("KEY_VAULT_URL", None)
+        _secrets_cache["client_id"] = None
+        _secrets_cache["client_secret"] = None
         with self.assertRaises(Exception) as ctx:
             get_cognito_credentials(secret_client=types.SimpleNamespace(get_secret=lambda n: None))
-        self.assertIn('KEY_VAULT_URL', str(ctx.exception))
+        self.assertIn("KEY_VAULT_URL", str(ctx.exception))
         os.environ.clear()
         os.environ.update(orig_environ)
 
     def test_logging_on_error(self):
         # Patch os.environ to not have KEY_VAULT_URL
         orig_environ = os.environ.copy()
-        os.environ.pop('KEY_VAULT_URL', None)
-        _secrets_cache['client_id'] = None
-        _secrets_cache['client_secret'] = None
+        os.environ.pop("KEY_VAULT_URL", None)
+        _secrets_cache["client_id"] = None
+        _secrets_cache["client_secret"] = None
         logs = []
+
         def fake_log(msg):
             logs.append(msg)
+
         orig_log = logging.error
         logging.error = fake_log
         try:
@@ -164,23 +168,25 @@ class TestSecretCachingLogic(unittest.TestCase):
             logging.error = orig_log
             os.environ.clear()
             os.environ.update(orig_environ)
-        self.assertTrue(any('Error retrieving credentials' in l for l in logs))
+        self.assertTrue(any("Error retrieving credentials" in l for l in logs))
 
     def test_parameterized_secret_names(self):
         class DummySecret:
             def __init__(self, value):
                 self.value = value
+
         class DummyClient:
             def get_secret(self, name):
                 return DummySecret(f"{name}_value")
+
         orig_environ = os.environ.copy()
-        os.environ['KEY_VAULT_URL'] = 'dummy-url'
-        os.environ['COGNITO_CLIENT_ID_SECRET_NAME'] = 'custom-client-id'
-        os.environ['COGNITO_CLIENT_SECRET_SECRET_NAME'] = 'custom-client-secret'
-        _secrets_cache['client_id'] = None
-        _secrets_cache['client_secret'] = None
+        os.environ["KEY_VAULT_URL"] = "dummy-url"
+        os.environ["COGNITO_CLIENT_ID_SECRET_NAME"] = "custom-client-id"
+        os.environ["COGNITO_CLIENT_SECRET_SECRET_NAME"] = "custom-client-secret"
+        _secrets_cache["client_id"] = None
+        _secrets_cache["client_secret"] = None
         client_id, client_secret = get_cognito_credentials(secret_client=DummyClient())
-        self.assertEqual(client_id, 'custom-client-id_value')
-        self.assertEqual(client_secret, 'custom-client-secret_value')
+        self.assertEqual(client_id, "custom-client-id_value")
+        self.assertEqual(client_secret, "custom-client-secret_value")
         os.environ.clear()
         os.environ.update(orig_environ)

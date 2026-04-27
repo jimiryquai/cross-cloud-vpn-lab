@@ -12,7 +12,6 @@ Prerequisites:
 - Real AWS resources deployed (Cognito, GUID API)
 """
 
-
 import os
 import unittest
 import requests
@@ -30,24 +29,20 @@ class TestRealIntegration(unittest.TestCase):
     """Integration tests with real Azure Key Vault and AWS services"""
 
     def setUp(self):
-        required = [
-            'KEY_VAULT_URL',
-            'COGNITO_DOMAIN',
-            'GUID_API_URL'
-        ]
+        required = ["KEY_VAULT_URL", "COGNITO_DOMAIN", "GUID_API_URL"]
         missing = [var for var in required if not os.environ.get(var)]
         if missing:
             self.skipTest(f"Missing required environment variables: {', '.join(missing)}")
-        _token_cache['access_token'] = None
-        _token_cache['expires_at'] = None
-        _secrets_cache['client_id'] = None
-        _secrets_cache['client_secret'] = None
+        _token_cache["access_token"] = None
+        _token_cache["expires_at"] = None
+        _secrets_cache["client_id"] = None
+        _secrets_cache["client_secret"] = None
 
     def tearDown(self):
-        _token_cache['access_token'] = None
-        _token_cache['expires_at'] = None
-        _secrets_cache['client_id'] = None
-        _secrets_cache['client_secret'] = None
+        _token_cache["access_token"] = None
+        _token_cache["expires_at"] = None
+        _secrets_cache["client_id"] = None
+        _secrets_cache["client_secret"] = None
 
     def test_retrieve_credentials_from_key_vault(self):
         client_id, secret = get_cognito_credentials()
@@ -58,7 +53,7 @@ class TestRealIntegration(unittest.TestCase):
 
     def test_credentials_are_cached_after_first_retrieval(self):
         client_id_1, secret_1 = get_cognito_credentials()
-        self.assertIsNotNone(_secrets_cache['client_id'], "Cache should be populated")
+        self.assertIsNotNone(_secrets_cache["client_id"], "Cache should be populated")
         client_id_2, secret_2 = get_cognito_credentials()
         self.assertEqual(client_id_1, client_id_2, "Cached client_id should match")
         self.assertEqual(secret_1, secret_2, "Cached secret should match")
@@ -68,22 +63,22 @@ class TestRealIntegration(unittest.TestCase):
         access_token = get_cognito_token(client_id, secret)
         self.assertIsNotNone(access_token, "access_token should not be None")
         self.assertGreater(len(access_token), 100, "JWT tokens should be long (>100 chars)")
-        self.assertTrue(access_token.startswith('eyJ'), "JWT tokens should start with 'eyJ'")
+        self.assertTrue(access_token.startswith("eyJ"), "JWT tokens should start with 'eyJ'")
 
     def test_call_real_guid_api(self):
         client_id, secret = get_cognito_credentials()
         access_token = get_cognito_token(client_id, secret)
         person_data = call_guid_api(access_token, TEST_IDENTIFIER, TEST_CORRELATION)
         self.assertIsNotNone(person_data, "Should get a response from upstream")
-        self.assertIn('nino', person_data, "Raw response should contain 'nino'")
+        self.assertIn("nino", person_data, "Raw response should contain 'nino'")
 
     def test_end_to_end_flow(self):
         client_id, secret = get_cognito_credentials()
         access_token = get_cognito_token(client_id, secret)
         person_data = call_guid_api(access_token, TEST_IDENTIFIER, TEST_CORRELATION)
         self.assertIsNotNone(person_data)
-        self.assertIn('nino', person_data)
-        returned_nino = person_data.get('nino')
+        self.assertIn("nino", person_data)
+        returned_nino = person_data.get("nino")
         self.assertIsNotNone(returned_nino, "nino should be present in response")
 
     def test_token_caching_reduces_cognito_calls(self):
@@ -97,7 +92,7 @@ class TestRealIntegration(unittest.TestCase):
         access_token = get_cognito_token(client_id, secret)
         person_data = call_guid_api(access_token, INVALID_GUID, TEST_CORRELATION)
         self.assertIsNotNone(person_data, "Should get response from mock API")
-        self.assertIn('nino', person_data, "Response should contain 'nino'")
+        self.assertIn("nino", person_data, "Response should contain 'nino'")
 
     def test_bulk_endpoint_real(self):
         """Integration test for the bulk endpoint."""

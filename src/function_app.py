@@ -1,7 +1,7 @@
-
 import azure.functions as func
 import json
-import logging
+
+# ...existing code...
 from shared.context_logger import ContextLogger
 import requests
 import os
@@ -10,6 +10,7 @@ from shared.auth.token import get_cognito_token
 from pydantic import BaseModel, ValidationError, Field
 from typing import Optional, List
 from middleware.project_context import project_context_middleware
+
 # --- Environment Variable Validation ---
 REQUIRED_ENV_VARS = [
     "KEY_VAULT_URL",
@@ -17,23 +18,28 @@ REQUIRED_ENV_VARS = [
     "GUID_API_URL",
 ]
 
+
 def validate_env_vars():
     missing = [var for var in REQUIRED_ENV_VARS if not os.environ.get(var)]
     if missing:
         raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
 
+
 # Validate environment at startup
 validate_env_vars()
 # --- API Routes ---
+
 
 # --- Input Schemas ---
 class BulkGuidRequest(BaseModel):
     numberOfRecords: int = Field(..., ge=1, le=5000)
     identifiers: List[str]
 
+
 class SingleGuidRequestHeaders(BaseModel):
     Identifier: str
     correlation_id: Optional[str] = None
+
 
 class ProjectQueryParams(BaseModel):
     project: str
@@ -52,7 +58,6 @@ def call_guid_api(access_token, identifier, correlation_id):
             raise ValueError("GUID_API_URL environment variable is not configured")
 
         guid_api_url = f"{guid_api_base_url}/guid-translation-service/v1/dwp-guid"
-
         response = requests.get(
             guid_api_url,
             headers={
@@ -62,12 +67,13 @@ def call_guid_api(access_token, identifier, correlation_id):
             },
             timeout=10,
         )
-
-
         if response.status_code != 200:
-            logger.error(f"Upstream Error: {response.status_code} - {response.text}", project=None, correlation_id=correlation_id)
+            logger.error(
+                f"Upstream Error: {response.status_code} - {response.text}",
+                project=None,
+                correlation_id=correlation_id,
+            )
             raise RuntimeError(f"Upstream service returned {response.status_code}")
-
         return response.json()
     except requests.RequestException as e:
         raise ConnectionError(f"Failed to connect to upstream API: {str(e)}") from e
@@ -78,15 +84,15 @@ def call_guid_api(access_token, identifier, correlation_id):
 
 # 1. Single Lookup (GET)
 
+
 @app.route(route="guid-translation-service/v1/dwp-guid", methods=["GET"])
 @project_context_middleware
-
 def get_single_guid(req: func.HttpRequest) -> func.HttpResponse:
     # Validate headers
     try:
         headers = SingleGuidRequestHeaders(
             Identifier=req.headers.get("Identifier") or "",
-            correlation_id=req.headers.get("correlation-id", "not-provided")
+            correlation_id=req.headers.get("correlation-id", "not-provided"),
         )
     except ValidationError as ve:
         return func.HttpResponse(
@@ -97,7 +103,7 @@ def get_single_guid(req: func.HttpRequest) -> func.HttpResponse:
 
     # Extract project, arn, and correlation_id from headers or query params
     project = req.headers.get("project") or req.params.get("project")
-    arn = req.headers.get("arn") or req.params.get("arn")
+    # arn = req.headers.get("arn") or req.params.get("arn")  # Unused variable removed
     correlation_id = req.headers.get("correlation-id", "not-provided")
     logger.info("Processing single GUID lookup.", project=project, correlation_id=correlation_id)
 
@@ -111,9 +117,7 @@ def get_single_guid(req: func.HttpRequest) -> func.HttpResponse:
             json.dumps(
                 {
                     "Type": "NINO",
-                    "Returned identifier of the type specified in the type field": person_data.get(
-                        "nino", "NOT_FOUND"
-                    ),
+                    "Returned identifier of the type specified in the type field": person_data.get("nino", "NOT_FOUND"),
                 }
             ),
             status_code=200,
@@ -122,20 +126,18 @@ def get_single_guid(req: func.HttpRequest) -> func.HttpResponse:
         )
     except Exception as e:
         logger.error(f"Proxy Failure: {str(e)}", project=project, correlation_id=correlation_id)
-        return func.HttpResponse(
-            json.dumps({"error": str(e)}), status_code=500, mimetype="application/json"
-        )
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500, mimetype="application/json")
 
 
 # 2. Bulk Processing (POST)
 
+
 @app.route(route="dwp-guid-bulk-service/v1/{bulk_activity}", methods=["POST"])
 @project_context_middleware
-
 def process_bulk_guids(req: func.HttpRequest) -> func.HttpResponse:
     # Extract project, arn, and correlation_id from headers or query params
     project = req.headers.get("project") or req.params.get("project")
-    arn = req.headers.get("arn") or req.params.get("arn")
+    # arn = req.headers.get("arn") or req.params.get("arn")  # Unused variable removed
     correlation_id = req.headers.get("correlation-id", "not-provided")
     bulk_activity = req.route_params.get("bulk_activity")
     logger.info("Processing bulk GUID translation.", project=project, correlation_id=correlation_id)
@@ -162,9 +164,7 @@ def process_bulk_guids(req: func.HttpRequest) -> func.HttpResponse:
         client_id, client_secret = get_cognito_credentials(project)
         access_token = get_cognito_token(project, client_id, client_secret)
 
-        bulk_api_url = (
-            f"{os.environ.get('GUID_API_URL')}/dwp-guid-bulk-service/v1/{bulk_activity}"
-        )
+        bulk_api_url = f"{os.environ.get('GUID_API_URL')}/dwp-guid-bulk-service/v1/{bulk_activity}"
 
         response = requests.post(
             bulk_api_url,
@@ -179,11 +179,7 @@ def process_bulk_guids(req: func.HttpRequest) -> func.HttpResponse:
         req_body_json = None  # Discard original NINOs immediately from memory
 
         return func.HttpResponse(
-            (
-                response.text
-                if response.status_code == 200
-                else json.dumps(response.json())
-            ),
+            (response.text if response.status_code == 200 else json.dumps(response.json())),
             status_code=response.status_code,
             mimetype="application/json",
         )
@@ -194,14 +190,14 @@ def process_bulk_guids(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json",
         )
 
+
 # 3. Daily Allowance (GET)
 @app.route(route="dwp-guid-bulk-service/v1/remaining-daily-allowance", methods=["GET"])
 @project_context_middleware
-
 def get_daily_allowance(req: func.HttpRequest) -> func.HttpResponse:
     # Extract project, arn, and correlation_id from headers or query params
     project = req.headers.get("project") or req.params.get("project")
-    arn = req.headers.get("arn") or req.params.get("arn")
+    # arn = req.headers.get("arn") or req.params.get("arn")  # Unused variable removed
     correlation_id = req.headers.get("correlation-id", "not-provided")
     logger.info("Processing daily allowance check via upstream proxy.", project=project, correlation_id=correlation_id)
 

@@ -3,7 +3,10 @@ import logging
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
-_arn_cache = {}
+from typing import Dict
+
+_arn_cache: Dict[str, str] = {}
+
 
 def get_project_arn(project, secret_client=None):
     """
@@ -17,9 +20,9 @@ def get_project_arn(project, secret_client=None):
     if _arn_cache.get(secret_name):
         return _arn_cache[secret_name]
 
-    key_vault_url = os.environ.get('KEY_VAULT_URL')
+    key_vault_url = os.environ.get("KEY_VAULT_URL")
     if not key_vault_url:
-        raise Exception('KEY_VAULT_URL environment variable is not configured')
+        raise Exception("KEY_VAULT_URL environment variable is not configured")
 
     if secret_client is None:
         credential = DefaultAzureCredential()

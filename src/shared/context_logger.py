@@ -1,9 +1,11 @@
 import logging
 
+
 class ContextLogger:
     """
     Structured logger that always includes project and correlation_id in log messages.
     """
+
     def __init__(self, logger=None):
         self.logger = logger or logging.getLogger()
 

@@ -3,7 +3,9 @@ from datetime import datetime, timedelta
 import requests
 from requests.auth import HTTPBasicAuth
 
-_token_cache = {}
+from typing import Dict, Any
+
+_token_cache: Dict[str, Dict[str, Any]] = {}
 
 
 def get_cached_token(project):
@@ -14,12 +16,11 @@ def get_cached_token(project):
             return tenant_cache["access_token"]
     return None
 
+
 def cache_token(project, access_token, expires_in):
     """Cache the token specifically under the project key"""
-    _token_cache[project] = {
-        "access_token": access_token,
-        "expires_at": datetime.now() + timedelta(seconds=expires_in)
-    }
+    _token_cache[project] = {"access_token": access_token, "expires_at": datetime.now() + timedelta(seconds=expires_in)}
+
 
 def get_cognito_token(project, client_id, client_secret, requests_session=None):
     """Get OAuth token from Cognito (uses cache if valid)"""
@@ -36,12 +37,12 @@ def get_cognito_token(project, client_id, client_secret, requests_session=None):
         auth=HTTPBasicAuth(client_id, client_secret),
         data={"grant_type": "client_credentials"},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
-        timeout=10
+        timeout=10,
     )
-    
+
     # Ensure we don't cache empty garbage if the AWS request fails
-    response.raise_for_status() 
-    
+    response.raise_for_status()
+
     token_data = response.json()
     cache_token(project, token_data["access_token"], token_data.get("expires_in", 3600))
     return token_data["access_token"]

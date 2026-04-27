@@ -1,10 +1,12 @@
 """
 Unit tests for environment variable validation logic in function_app.py
 """
+
 import os
 import unittest
 from importlib import reload
 import sys
+
 
 class TestEnvVarValidation(unittest.TestCase):
     def setUp(self):
@@ -24,6 +26,7 @@ class TestEnvVarValidation(unittest.TestCase):
         # None set
         with self.assertRaises(RuntimeError) as ctx:
             import function_app
+
             reload(function_app)
         self.assertIn("Missing required environment variables", str(ctx.exception))
 
@@ -31,6 +34,7 @@ class TestEnvVarValidation(unittest.TestCase):
         os.environ["KEY_VAULT_URL"] = "dummy"
         with self.assertRaises(RuntimeError) as ctx:
             import function_app
+
             reload(function_app)
         self.assertIn("Missing required environment variables", str(ctx.exception))
 
@@ -40,9 +44,11 @@ class TestEnvVarValidation(unittest.TestCase):
         os.environ["GUID_API_URL"] = "dummy"
         try:
             import function_app
+
             reload(function_app)
         except RuntimeError:
             self.fail("validate_env_vars() raised unexpectedly when all vars set")
+
 
 if __name__ == "__main__":
     unittest.main()

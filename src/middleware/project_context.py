@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 logger = ContextLogger()
 
+
 def project_context_middleware(handler):
     @wraps(handler)
     def wrapper(req, *args, **kwargs):
@@ -38,4 +39,5 @@ def project_context_middleware(handler):
         req.context = {"project": project, "correlation_id": correlation_id, "arn": arn}
         logger.info("Project context validated.", project=project, correlation_id=correlation_id)
         return handler(req, *args, **kwargs)
+
     return wrapper

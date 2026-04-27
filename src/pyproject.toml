@@ -1,14 +1,24 @@
+
+
 [tool.ruff]
 line-length = 120
-select = ["E", "F", "B", "I", "S"]
-ignore = []
 
 [tool.ruff.lint]
-# Enable Ruff's security rules (S) and bugbear (B)
-select = ["E", "F", "B", "S"]
+# Enable Ruff's security rules (S), bugbear (B), isort (I), and default (E, F)
+select = ["E", "F", "B", "S", "I"]
+ignore = []
+
 
 [tool.ruff.format]
 # Use Black-compatible formatting
 quote-style = "double"
 indent-style = "space"
 line-ending = "auto"
+
+
+# Poe the Poet tasks
+[tool.poe.tasks]
+lint = ".venv\\Scripts\\ruff.exe check ."
+format = ".venv\\Scripts\\ruff.exe format ."
+typecheck = ".venv\\Scripts\\mypy.exe ."
+all = { shell = ".venv\\Scripts\\ruff.exe check . ; .venv\\Scripts\\ruff.exe format . ; .venv\\Scripts\\mypy.exe ." }
