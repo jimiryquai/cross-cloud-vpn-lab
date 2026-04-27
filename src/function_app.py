@@ -101,8 +101,8 @@ def get_single_guid(req: func.HttpRequest) -> func.HttpResponse:
 
     try:
         # (Placeholder) Use arn as needed for downstream logic
-        client_id, client_secret = get_cognito_credentials()
-        access_token = get_cognito_token(client_id, client_secret)
+        client_id, client_secret = get_cognito_credentials(project)
+        access_token = get_cognito_token(project, client_id, client_secret)
         person_data = call_guid_api(access_token, headers.Identifier, correlation_id)
 
         return func.HttpResponse(
@@ -155,8 +155,8 @@ def process_bulk_guids(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     try:
-        client_id, client_secret = get_cognito_credentials()
-        access_token = get_cognito_token(client_id, client_secret)
+        client_id, client_secret = get_cognito_credentials(project)
+        access_token = get_cognito_token(project, client_id, client_secret)
 
         bulk_api_url = (
             f"{os.environ.get('GUID_API_URL')}/dwp-guid-bulk-service/v1/{bulk_activity}"
@@ -201,8 +201,8 @@ def get_daily_allowance(req: func.HttpRequest) -> func.HttpResponse:
 
     try:
         # Auth & Tokens
-        client_id, client_secret = get_cognito_credentials()
-        access_token = get_cognito_token(client_id, client_secret)
+        client_id, client_secret = get_cognito_credentials(project)
+        access_token = get_cognito_token(project, client_id, client_secret)
 
         # Build URL based on the exact Swagger definition
         allowance_api_url = f"{os.environ.get('GUID_API_URL')}/dwp-guid-bulk-service/v1/remaining-daily-allowance"

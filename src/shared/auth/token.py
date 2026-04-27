@@ -3,36 +3,45 @@ from datetime import datetime, timedelta
 import requests
 from requests.auth import HTTPBasicAuth
 
-_token_cache = {'access_token': None, 'expires_at': None}
+_token_cache = {}
 
-def get_cached_token():
+
+def get_cached_token(project):
     """Return cached token if still valid (with 60s safety buffer)"""
-    if _token_cache['access_token'] and _token_cache['expires_at']:
-        if datetime.now() < _token_cache['expires_at'] - timedelta(seconds=60):
-            return _token_cache['access_token']
+    if project in _token_cache:
+        tenant_cache = _token_cache[project]
+        if datetime.now() < tenant_cache["expires_at"] - timedelta(seconds=60):
+            return tenant_cache["access_token"]
     return None
 
-def cache_token(access_token, expires_in):
-    _token_cache['access_token'] = access_token
-    _token_cache['expires_at'] = datetime.now() + timedelta(seconds=expires_in)
+def cache_token(project, access_token, expires_in):
+    """Cache the token specifically under the project key"""
+    _token_cache[project] = {
+        "access_token": access_token,
+        "expires_at": datetime.now() + timedelta(seconds=expires_in)
+    }
 
-def get_cognito_token(client_id, client_secret, requests_session=None):
+def get_cognito_token(project, client_id, client_secret, requests_session=None):
     """Get OAuth token from Cognito (uses cache if valid)"""
-    cached_token = get_cached_token()
+    cached_token = get_cached_token(project)
     if cached_token:
         return cached_token
 
-    cognito_domain = os.environ.get('COGNITO_DOMAIN')
-    token_url = f'https://{cognito_domain}/oauth2/token'
+    cognito_domain = os.environ.get("COGNITO_DOMAIN")
+    token_url = f"https://{cognito_domain}/oauth2/token"
 
     session = requests_session or requests
     response = session.post(
         token_url,
         auth=HTTPBasicAuth(client_id, client_secret),
-        data={'grant_type': 'client_credentials'},
-        headers={'Content-Type': 'application/x-www-form-urlencoded'},
+        data={"grant_type": "client_credentials"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
         timeout=10
     )
+    
+    # Ensure we don't cache empty garbage if the AWS request fails
+    response.raise_for_status() 
+    
     token_data = response.json()
-    cache_token(token_data['access_token'], token_data.get('expires_in', 3600))
-    return token_data['access_token']
+    cache_token(project, token_data["access_token"], token_data.get("expires_in", 3600))
+    return token_data["access_token"]

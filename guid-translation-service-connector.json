@@ -42,14 +42,13 @@
             "required": true,
             "type": "string",
             "description": "Standard UUID for request tracking."
-          }
-          ,{
-            "name": "project",
-            "in": "query",
+          },
+          {
+            "name": "Project-ID",
+            "in": "header",
             "required": true,
             "type": "string",
-            "enum": ["FQM", "1ACS", "HousingBenefit", "MATB1"],
-            "description": "Project/team identifier. Must be one of: FQM, 1ACS, HousingBenefit, MATB1."
+            "description": "Project or team identifier used for secure tenant routing (e.g., FQM, ACS)."
           }
         ],
         "responses": {
@@ -59,8 +58,12 @@
               "$ref": "#/definitions/IdentityResponseDTO"
             }
           },
-          "400": { "description": "Bad Request" },
-          "500": { "description": "Internal Proxy Error" }
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Proxy Error"
+          }
         }
       }
     },
@@ -96,14 +99,13 @@
             "schema": {
               "$ref": "#/definitions/RecordHolder"
             }
-          }
-          ,{
-            "name": "project",
-            "in": "query",
+          },
+          {
+            "name": "Project-ID",
+            "in": "header",
             "required": true,
             "type": "string",
-            "enum": ["FQM", "1ACS", "HousingBenefit", "MATB1"],
-            "description": "Project/team identifier. Must be one of: FQM, 1ACS, HousingBenefit, MATB1."
+            "description": "Project or team identifier used for secure tenant routing (e.g., FQM, ACS)."
           }
         ],
         "responses": {
@@ -158,14 +160,13 @@
             "required": true,
             "type": "string",
             "description": "UUID for request tracking. Must match ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$."
-          }
-          ,{
-            "name": "project",
-            "in": "query",
+          },
+          {
+            "name": "Project-ID",
+            "in": "header",
             "required": true,
             "type": "string",
-            "enum": ["FQM", "1ACS", "HousingBenefit", "MATB1"],
-            "description": "Project/team identifier. Must be one of: FQM, 1ACS, HousingBenefit, MATB1."
+            "description": "Project or team identifier used for secure tenant routing (e.g., FQM, ACS)."
           }
         ],
         "responses": {

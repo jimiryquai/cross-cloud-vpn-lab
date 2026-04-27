@@ -10,11 +10,10 @@ logger = ContextLogger()
 def project_context_middleware(handler):
     @wraps(handler)
     def wrapper(req, *args, **kwargs):
-        # Validate project param
-        project = req.params.get("project")
+        project = req.headers.get("Project-ID")
         if not project:
             return func.HttpResponse(
-                json.dumps({"error": "Missing required query parameter: project"}),
+                json.dumps({"error": "Missing required header: Project-ID"}),
                 status_code=400,
                 mimetype="application/json",
             )
