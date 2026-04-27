@@ -80,11 +80,12 @@ def call_guid_api(access_token, identifier, correlation_id):
 
 @app.route(route="guid-translation-service/v1/dwp-guid", methods=["GET"])
 @project_context_middleware
+
 def get_single_guid(req: func.HttpRequest) -> func.HttpResponse:
     # Validate headers
     try:
         headers = SingleGuidRequestHeaders(
-            Identifier=req.headers.get("Identifier"),
+            Identifier=req.headers.get("Identifier") or "",
             correlation_id=req.headers.get("correlation-id", "not-provided")
         )
     except ValidationError as ve:
@@ -94,9 +95,10 @@ def get_single_guid(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json",
         )
 
-    project = req.context["project"]
-    arn = req.context["arn"]
-    correlation_id = req.context["correlation_id"]
+    # Extract project, arn, and correlation_id from headers or query params
+    project = req.headers.get("project") or req.params.get("project")
+    arn = req.headers.get("arn") or req.params.get("arn")
+    correlation_id = req.headers.get("correlation-id", "not-provided")
     logger.info("Processing single GUID lookup.", project=project, correlation_id=correlation_id)
 
     try:
@@ -129,10 +131,12 @@ def get_single_guid(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="dwp-guid-bulk-service/v1/{bulk_activity}", methods=["POST"])
 @project_context_middleware
+
 def process_bulk_guids(req: func.HttpRequest) -> func.HttpResponse:
-    project = req.context["project"]
-    arn = req.context["arn"]
-    correlation_id = req.context["correlation_id"]
+    # Extract project, arn, and correlation_id from headers or query params
+    project = req.headers.get("project") or req.params.get("project")
+    arn = req.headers.get("arn") or req.params.get("arn")
+    correlation_id = req.headers.get("correlation-id", "not-provided")
     bulk_activity = req.route_params.get("bulk_activity")
     logger.info("Processing bulk GUID translation.", project=project, correlation_id=correlation_id)
 
@@ -193,10 +197,12 @@ def process_bulk_guids(req: func.HttpRequest) -> func.HttpResponse:
 # 3. Daily Allowance (GET)
 @app.route(route="dwp-guid-bulk-service/v1/remaining-daily-allowance", methods=["GET"])
 @project_context_middleware
+
 def get_daily_allowance(req: func.HttpRequest) -> func.HttpResponse:
-    project = req.context["project"]
-    arn = req.context["arn"]
-    correlation_id = req.context["correlation_id"]
+    # Extract project, arn, and correlation_id from headers or query params
+    project = req.headers.get("project") or req.params.get("project")
+    arn = req.headers.get("arn") or req.params.get("arn")
+    correlation_id = req.headers.get("correlation-id", "not-provided")
     logger.info("Processing daily allowance check via upstream proxy.", project=project, correlation_id=correlation_id)
 
     try:
